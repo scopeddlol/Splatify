@@ -1,0 +1,126 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: splatify-production
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      sha: ${{ steps.revision.outputs.sha }}
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+      - id: revision
+        env:
+          REVISION: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          [[ "$REVISION" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          printf 'sha=%s\n' "$REVISION" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64
+          tags: ghcr.io/scopeddlol/splatify:sha-${{ steps.revision.outputs.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ steps.revision.outputs.sha }}
+
+  deploy:
+    needs: publish
+    if: vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - name: Deploy verified image over SSH
+        shell: bash
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+          VPS_DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          REVISION: ${{ needs.publish.outputs.sha }}
+          DIGEST: ${{ needs.publish.outputs.digest }}
+        run: |
+          set -euo pipefail
+          [[ "$VPS_HOST" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]] || exit 1
+          [[ "$VPS_USER" =~ ^[a-z_][a-z0-9_-]*$ ]] || exit 1
+          [[ "$VPS_DEPLOY_PATH" =~ ^/[a-zA-Z0-9_/-]+$ ]] || exit 1
+          [[ "$VPS_DEPLOY_PATH" != / && "$VPS_DEPLOY_PATH" != *//* ]] || exit 1
+          [[ "$GHCR_USERNAME" =~ ^[a-zA-Z0-9][a-zA-Z0-9-]*$ ]] || exit 1
+          [[ "$REVISION" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || exit 1
+          [[ -n "$GHCR_TOKEN" && -n "$VPS_SSH_KEY" && -n "$VPS_KNOWN_HOSTS" ]] || exit 1
+          # A single-line token is sent on stdin, never interpolated into shell code.
+          [[ "$GHCR_TOKEN" != *$'\n'* && "$GHCR_TOKEN" != *$'\r'* ]] || exit 1
+          umask 077
+          ssh_dir=$(mktemp -d)
+          trap 'rm -rf "$ssh_dir"' EXIT
+          printf '%s\n' "$VPS_SSH_KEY" > "$ssh_dir/key"
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > "$ssh_dir/known_hosts"
+          {
+            printf '%s\n' "$GHCR_TOKEN"
+            cat <<'REMOTE'
+          set -euo pipefail
+          umask 077
+          cd -- "$1"
+          test -f compose.yml && test -f Caddyfile && test -f .env
+          export DOCKER_CONFIG
+          DOCKER_CONFIG=$(mktemp -d)
+          trap 'rm -rf "$DOCKER_CONFIG"' EXIT
+          printf '%s' "$registry_token" | docker login ghcr.io --username "$2" --password-stdin >/dev/null
+          unset registry_token
+          # Only validated image metadata is written here, never application secrets.
+          printf 'SPLATIFY_IMAGE=ghcr.io/scopeddlol/splatify:sha-%s@%s\n' "$3" "$4" > .deploy.env.next
+          dc() { docker compose --env-file .env --env-file .deploy.env.next "$@"; }
+          dc config --quiet
+          dc pull db migrate web
+          dc up -d --wait --wait-timeout 120 db
+          dc run --rm --no-deps migrate
+          # Migration has already succeeded; do not let Compose rerun an old job.
+          dc up -d --no-deps --wait --wait-timeout 180 web
+          if dc config --services | grep -qx caddy; then
+            dc pull caddy
+            dc up -d --no-deps caddy
+          fi
+          mv -f .deploy.env.next .deploy.env
+          REMOTE
+          } | ssh -T -i "$ssh_dir/key" \
+            -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$ssh_dir/known_hosts" -o ConnectTimeout=15 \
+            "$VPS_USER@$VPS_HOST" \
+            "IFS= read -r registry_token; export registry_token; bash -s -- '$VPS_DEPLOY_PATH' '$GHCR_USERNAME' '$REVISION' '$DIGEST'"
