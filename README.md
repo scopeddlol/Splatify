@@ -181,10 +181,11 @@ automatic rollback after migration or a failed web healthcheck; inspect the run
 and container state. Approve only the intended revision, since an older CI run
 can finish after a newer one.
 
-Actions use maintained major tags (`checkout@v4`, `setup-node@v4`, Docker actions
-v3/v6); full action commit hashes have not been verified here. For stricter supply
-chain controls, replace tags with verified upstream commit SHAs and automate
-reviewed updates. Neither major tags nor base-image tags are immutable.
+Actions are pinned to verified upstream commit SHAs, with release versions in
+comments. Update them through reviewed changes. Base-image major tags are still
+mutable; pin reviewed image digests if required by your operations policy.
+The publish job also boots the exact published image with disposable PostgreSQL
+through Compose and checks migrations and HTTP health before deployment is eligible.
 
 ## Operations
 
