@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowUpRight, Crosshair } from "lucide-react";
 import { Brand, Notice } from "./shell";
 import { Submit } from "./ui";
 import { loginAction, signupAction, recoverAction } from "@/app/actions";
+import { PasswordInput } from "./password-input";
 
 export function AuthPage({
   mode,
@@ -13,6 +14,8 @@ export function AuthPage({
 }) {
   const signup = mode === "signup";
   const recover = mode === "recover";
+  const next = typeof params.next === "string" ? params.next : "/dashboard";
+  const authUrl = (path: string) => `${path}?next=${encodeURIComponent(next)}`;
   return (
     <div className="auth-layout">
       <aside className="auth-art">
@@ -45,7 +48,7 @@ export function AuthPage({
               ? "BACK IN THE GAME"
               : signup
                 ? "ASSEMBLE YOUR CREW"
-                : "WELCOME BACK, ORGANIZER"}
+                : "WELCOME BACK, PLAYER"}
           </span>
           <h2>
             {recover
@@ -58,7 +61,7 @@ export function AuthPage({
             {recover
               ? "Use one of the recovery codes you saved when you signed up. Each code works once."
               : signup
-                ? "Create your free organizer account. Your friends can join without one."
+                ? "One free account to join days, save your player profile, chat with your crew, and organize your own events."
                 : "Sign in to pick up where you left off."}
           </p>
           <Notice params={params} />
@@ -68,9 +71,10 @@ export function AuthPage({
             }
             className="form-stack"
           >
+            <input type="hidden" name="next" value={next} />
             {signup && (
               <label>
-                Your name
+                Display name
                 <input
                   name="name"
                   autoComplete="name"
@@ -106,14 +110,12 @@ export function AuthPage({
             )}
             <label>
               {recover ? "New password" : "Password"}
-              <input
-                type="password"
+              <PasswordInput
                 name="password"
                 autoComplete={
                   signup || recover ? "new-password" : "current-password"
                 }
                 minLength={signup || recover ? 12 : 1}
-                maxLength={128}
                 required
                 placeholder={
                   signup || recover ? "At least 12 characters" : "Your password"
@@ -138,20 +140,23 @@ export function AuthPage({
           <div className="auth-links">
             {signup ? (
               <p>
-                Already have an account? <Link href="/login">Sign in</Link>
+                Already have an account?{" "}
+                <Link href={authUrl("/login")}>Sign in</Link>
               </p>
             ) : (
               <p>
-                New to the crew? <Link href="/signup">Create an account</Link>
+                New to the crew?{" "}
+                <Link href={authUrl("/signup")}>Create an account</Link>
               </p>
             )}
             {!recover && !signup && (
-              <Link href="/recover">Forgot your password?</Link>
+              <Link href={authUrl("/recover")}>Forgot your password?</Link>
             )}
-            {recover && <Link href="/login">Back to sign in</Link>}
+            {recover && <Link href={authUrl("/login")}>Back to sign in</Link>}
           </div>
           <p className="auth-footnote">
-            Invited to a day? Just open your invite link. No account needed.
+            Just looking? <Link href="/explore">Explore public days</Link>{" "}
+            without signing in.
           </p>
         </div>
       </main>

@@ -3,6 +3,7 @@ import { query } from "./db";
 import { getUser, requireUser, requireAdmin, guestToken } from "./auth";
 import { hashToken } from "./security";
 import { idSchema, tokenSchema } from "./validation";
+import { regionSearchTerms } from "./locations";
 import type {
   AdminOverview,
   Event,
@@ -13,11 +14,19 @@ import type {
   GearItem,
   Announcement,
   Poll,
+  Team,
+  Organizer,
+  Message,
 } from "./types";
 
 export { getUser, requireUser, getRecoveryCodes } from "./auth";
-export const eventColumns = `e.id,e.owner_id AS "ownerId",e.title,e.description,COALESCE(to_char(e.date,'YYYY-MM-DD'),'') AS date,e.time,e.timezone,e.venue,e.address,e.capacity,e.currency,e.invite_token AS "inviteToken",to_char(e.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "createdAt",e.theme`;
-const guestColumns = "id,name,status,marker,team,notes";
+export const eventColumns = `e.id,e.owner_id AS "ownerId",e.title,e.description,COALESCE(to_char(e.date,'YYYY-MM-DD'),'') AS date,e.time,e.timezone,e.venue,e.address,e.capacity,e.currency,e.invite_token AS "inviteToken",to_char(e.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "createdAt",e.theme,e.city,e.state,e.country,e.visibility,e.accent_color AS "accentColor",e.cover_id AS "coverId",e.invitation_cover_id AS "invitationCoverId",e.invitation_heading AS "invitationHeading",e.invitation_message AS "invitationMessage",e.member_invites_enabled AS "memberInvitesEnabled"`;
+const guestColumns = `g.id,g.name,g.status,g.marker,g.team,g.notes,g.user_id AS "userId",u.avatar_id AS "avatarId",COALESCE(u.bio,'') AS bio,g.team_id AS "teamId",COALESCE(t.color,'') AS "teamColor",g.approval`;
+const guestFrom =
+  "guests g LEFT JOIN users u ON u.id=g.user_id LEFT JOIN teams t ON t.id=g.team_id";
+const pageNumber = (value?: number) =>
+  Number.isSafeInteger(value) && value! > 0 ? Math.min(value!, 100000) : 1;
+type DetailOptions = { guestPage?: number; messagePage?: number };
 
 export async function getSiteSettings(): Promise<SiteSettings> {
   await connection();
@@ -27,36 +36,101 @@ export async function getSiteSettings(): Promise<SiteSettings> {
   if (!settings) throw new Error("Database migrations are required");
   return settings;
 }
-export async function getMyEvents(): Promise<
-  Array<Event & { guestCount: number; goingCount: number }>
-> {
+export async function getMyEvents(
+  page = 1,
+): Promise<Array<Event & { guestCount: number; goingCount: number }>> {
   const user = await requireUser();
   return query(
-    `SELECT ${eventColumns},(SELECT count(*)::int FROM guests g WHERE g.event_id=e.id) AS "guestCount",(SELECT count(*)::int FROM guests g WHERE g.event_id=e.id AND g.status='going') AS "goingCount" FROM events e WHERE e.owner_id=$1 ORDER BY e.created_at DESC LIMIT 100`,
-    [user.id],
+    `SELECT ${eventColumns},(SELECT count(*)::int FROM guests g WHERE g.event_id=e.id AND g.approval='approved') AS "guestCount",(SELECT count(*)::int FROM guests g WHERE g.event_id=e.id AND g.status='going' AND g.approval='approved') AS "goingCount" FROM events e WHERE e.owner_id=$1 OR EXISTS(SELECT 1 FROM event_organizers o WHERE o.event_id=e.id AND o.user_id=$1) ORDER BY e.created_at DESC,e.id LIMIT 100 OFFSET $2`,
+    [user.id, (pageNumber(page) - 1) * 100],
   );
 }
-export async function getMyInvitations(): Promise<Event[]> {
+export async function getMyInvitations(page = 1): Promise<Event[]> {
   const user = await requireUser();
-  return query<Event>(
-    `SELECT ${eventColumns} FROM events e JOIN guests g ON g.event_id=e.id WHERE g.user_id=$1 ORDER BY e.date ASC NULLS LAST,e.created_at DESC LIMIT 100`,
-    [user.id],
+  const events = await query<Event>(
+    `SELECT ${eventColumns.replace('e.invite_token AS "inviteToken"', `CASE WHEN e.owner_id=$1 OR EXISTS(SELECT 1 FROM event_organizers o WHERE o.event_id=e.id AND o.user_id=$1) OR (g.approval='approved' AND g.status<>'declined' AND e.member_invites_enabled) THEN e.invite_token ELSE '' END AS "inviteToken"`)} FROM events e JOIN guests g ON g.event_id=e.id WHERE g.user_id=$1 ORDER BY e.date ASC NULLS LAST,e.created_at DESC,e.id LIMIT 100 OFFSET $2`,
+    [user.id, (pageNumber(page) - 1) * 100],
   );
+  return events;
 }
-async function detail(event: Event, userId?: string): Promise<EventDetail> {
-  const raw = await guestToken(event.id);
-  const current = raw
-    ? ((
-        await query<Guest>(
-          `SELECT ${guestColumns} FROM guests WHERE event_id=$1 AND edit_token_hash=$2`,
-          [event.id, hashToken(raw)],
+async function detail(
+  event: Event,
+  options: DetailOptions = {},
+): Promise<EventDetail> {
+  const viewer = await getUser();
+  const isOwner = viewer?.id === event.ownerId;
+  const isOrganizer =
+    isOwner ||
+    !!(
+      viewer &&
+      (
+        await query(
+          "SELECT 1 FROM event_organizers WHERE event_id=$1 AND user_id=$2",
+          [event.id, viewer.id],
         )
-      )[0] ?? null)
-    : null;
+      ).length
+    );
+  const raw = await guestToken(event.id);
+  const current =
+    (
+      await query<Guest>(
+        `SELECT ${guestColumns} FROM ${guestFrom} WHERE g.event_id=$1 AND (g.user_id=$2 OR (g.user_id IS NULL AND g.edit_token_hash=$3)) ORDER BY (g.user_id IS NOT NULL) DESC LIMIT 1`,
+        [event.id, viewer?.id ?? null, raw ? hashToken(raw) : null],
+      )
+    )[0] ?? null;
+  const accepted = current?.approval === "approved";
+  const isMember = accepted && current.status !== "declined";
+  const canViewRoster = isOrganizer || accepted;
+  const canMessage =
+    isOrganizer || (!!viewer && current?.userId === viewer.id && isMember);
+  const guestPage = pageNumber(options.guestPage),
+    messagePage = pageNumber(options.messagePage);
+  const [counts] = await query<{
+    going: number;
+    guests: number;
+    estimatedCost: number;
+  }>(
+    `SELECT count(*) FILTER(WHERE approval='approved' AND status='going')::int AS going,count(*) FILTER(WHERE approval='approved')::int AS guests,(SELECT COALESCE(sum(cost),0)::float8 FROM gear_items WHERE event_id=$1) AS "estimatedCost" FROM guests WHERE event_id=$1`,
+    [event.id],
+  );
+  const base: EventDetail = {
+    event: {
+      ...event,
+      inviteToken:
+        isOrganizer || (isMember && event.memberInvitesEnabled)
+          ? event.inviteToken
+          : "",
+    },
+    viewer,
+    isOwner,
+    isOrganizer,
+    isMember,
+    canViewRoster,
+    canMessage,
+    currentGuest: current,
+    guestEditToken: current && !current.userId ? raw : null,
+    guests: [],
+    schedule: [],
+    gear: [],
+    announcements: [],
+    polls: [],
+    teams: [],
+    organizers: [],
+    messages: [],
+    guestTotal: canViewRoster ? counts.guests : 0,
+    goingCount: counts.going,
+    estimatedCost: counts.estimatedCost,
+    messageTotal: 0,
+    guestPage,
+    messagePage,
+    pendingGuests: [],
+    memberCandidates: [],
+  };
+  if (!canViewRoster) return base;
   const [guests, schedule, gear, announcements, rows] = await Promise.all([
     query<Guest>(
-      `SELECT ${guestColumns} FROM guests WHERE event_id=$1 ORDER BY created_at,id LIMIT 1000`,
-      [event.id],
+      `SELECT ${guestColumns} FROM ${guestFrom} WHERE g.event_id=$1 AND g.approval='approved' ORDER BY g.created_at,g.id LIMIT 20 OFFSET $2`,
+      [event.id, (guestPage - 1) * 20],
     ),
     query<ScheduleItem>(
       "SELECT id,time,title,description FROM schedule_items WHERE event_id=$1 ORDER BY time,id LIMIT 100",
@@ -77,14 +151,53 @@ async function detail(event: Event, userId?: string): Promise<EventDetail> {
       myVote: string | null;
     }>(
       `SELECT p.id,p.question,
-      COALESCE((SELECT jsonb_agg(jsonb_build_object('id',o.id,'label',o.label,'votes',(SELECT count(*)::int FROM poll_votes v WHERE v.option_id=o.id AND v.poll_id=p.id)) ORDER BY o.position) FROM poll_options o WHERE o.poll_id=p.id),'[]'::jsonb) AS options,
+      COALESCE((SELECT jsonb_agg(jsonb_build_object('id',o.id,'label',o.label,'votes',(SELECT count(*)::int FROM poll_votes v JOIN guests vg ON vg.id=v.guest_id WHERE v.option_id=o.id AND v.poll_id=p.id AND vg.approval='approved' AND vg.status<>'declined')) ORDER BY o.position) FROM poll_options o WHERE o.poll_id=p.id),'[]'::jsonb) AS options,
       (SELECT v.option_id FROM poll_votes v WHERE v.poll_id=p.id AND v.guest_id=$2) AS "myVote"
       FROM polls p WHERE p.event_id=$1 ORDER BY p.created_at DESC,p.id LIMIT 50`,
       [event.id, current?.id ?? null],
     ),
   ]);
+  const [teams, organizers, pendingGuests, memberCandidates] =
+    await Promise.all([
+      query<Team>(
+        `SELECT t.id,t.name,t.color,t.captain_user_id AS "captainUserId",COALESCE(u.name,'') AS "captainName",(SELECT count(*)::int FROM guests g WHERE g.team_id=t.id AND g.approval='approved' AND g.status<>'declined') AS "playerCount" FROM teams t LEFT JOIN users u ON u.id=t.captain_user_id WHERE t.event_id=$1 ORDER BY t.name,t.id`,
+        [event.id],
+      ),
+      query<Organizer>(
+        `SELECT u.id,u.name,u.avatar_id AS "avatarId",(u.id=$2) AS "isOwner" FROM users u WHERE u.id=$2 OR EXISTS(SELECT 1 FROM event_organizers o WHERE o.event_id=$1 AND o.user_id=u.id) ORDER BY (u.id=$2) DESC,u.name,u.id`,
+        [event.id, event.ownerId],
+      ),
+      isOrganizer
+        ? query<Guest>(
+            `SELECT ${guestColumns} FROM ${guestFrom} WHERE g.event_id=$1 AND g.approval='pending' ORDER BY g.created_at,g.id LIMIT 1000`,
+            [event.id],
+          )
+        : [],
+      isOrganizer
+        ? query<{ id: string; name: string }>(
+            `SELECT u.id,u.name FROM guests g JOIN users u ON u.id=g.user_id WHERE g.event_id=$1 AND g.approval='approved' AND g.status<>'declined' ORDER BY u.name,u.id LIMIT 1000`,
+            [event.id],
+          )
+        : [],
+    ]);
+  if (canMessage) {
+    base.messages = await query<Message>(
+      `SELECT m.id,m.body,m.user_id AS "authorId",u.name AS "authorName",u.avatar_id AS "avatarId",to_char(m.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "createdAt" FROM messages m JOIN users u ON u.id=m.user_id WHERE m.event_id=$1 ORDER BY m.created_at DESC,m.id LIMIT 20 OFFSET $2`,
+      [event.id, (messagePage - 1) * 20],
+    );
+    base.messageTotal = (
+      await query<{ n: number }>(
+        "SELECT count(*)::int AS n FROM messages WHERE event_id=$1",
+        [event.id],
+      )
+    )[0].n;
+  }
   return {
-    event,
+    ...base,
+    teams,
+    organizers,
+    pendingGuests,
+    memberCandidates,
     guests,
     schedule,
     gear,
@@ -95,22 +208,69 @@ async function detail(event: Event, userId?: string): Promise<EventDetail> {
       options: row.options,
       ...(row.myVote ? { myVote: row.myVote } : {}),
     })),
-    isOwner: userId === event.ownerId,
-    currentGuest: current,
-    guestEditToken: current ? raw : null,
   };
 }
 export async function getEvent(id: string): Promise<EventDetail | null> {
   const user = await requireUser();
   if (!idSchema.safeParse(id).success) return null;
   const [event] = await query<Event>(
-    `SELECT ${eventColumns} FROM events e WHERE e.id=$1 AND e.owner_id=$2`,
+    `SELECT ${eventColumns} FROM events e WHERE e.id=$1 AND (e.owner_id=$2 OR EXISTS(SELECT 1 FROM event_organizers o WHERE o.event_id=e.id AND o.user_id=$2))`,
     [id, user.id],
   );
-  return event ? detail(event, user.id) : null;
+  return event ? detail(event) : null;
+}
+export async function getDay(
+  id: string,
+  options: DetailOptions = {},
+): Promise<EventDetail | null> {
+  await connection();
+  if (!idSchema.safeParse(id).success) return null;
+  const [event] = await query<Event>(
+    `SELECT ${eventColumns} FROM events e WHERE e.id=$1`,
+    [id],
+  );
+  if (!event) return null;
+  const result = await detail(event, options);
+  return event.visibility === "public" ||
+    result.isOrganizer ||
+    result.currentGuest
+    ? result
+    : null;
+}
+export async function getPublicEvents(
+  filters: {
+    city?: string;
+    state?: string;
+    query?: string;
+    page?: number;
+  } = {},
+): Promise<{
+  events: Array<Event & { goingCount: number }>;
+  total: number;
+  page: number;
+  pageSize: number;
+}> {
+  await connection();
+  const page = pageNumber(filters.page);
+  const values = [
+    filters.city?.trim().slice(0, 100) || "",
+    regionSearchTerms(filters.state || ""),
+    filters.query?.trim().slice(0, 120) || "",
+  ];
+  const where = `e.visibility='public' AND (e.date>=CURRENT_DATE OR e.date IS NULL) AND ($1='' OR strpos(lower(e.city),lower($1))>0) AND (''=ANY($2::text[]) OR lower(e.state)=ANY($2::text[])) AND ($3='' OR strpos(lower(e.title||' '||e.description||' '||e.venue),lower($3))>0)`;
+  const [count] = await query<{ total: number }>(
+    `SELECT count(*)::int AS total FROM events e WHERE ${where}`,
+    values,
+  );
+  const events = await query<Event & { goingCount: number }>(
+    `SELECT ${eventColumns.replace('e.invite_token AS "inviteToken"', `'' AS "inviteToken"`)},(SELECT count(*)::int FROM guests g WHERE g.event_id=e.id AND g.approval='approved' AND g.status='going') AS "goingCount" FROM events e WHERE ${where} ORDER BY e.date ASC NULLS LAST,e.created_at DESC,e.id LIMIT 12 OFFSET $4`,
+    [...values, (page - 1) * 12],
+  );
+  return { events, total: count.total, page, pageSize: 12 };
 }
 export async function getSharedEvent(
   invite: string,
+  options: DetailOptions = {},
 ): Promise<EventDetail | null> {
   await connection();
   if (!tokenSchema.safeParse(invite).success) return null;
@@ -118,7 +278,7 @@ export async function getSharedEvent(
     `SELECT ${eventColumns} FROM events e WHERE e.invite_token=$1`,
     [invite],
   );
-  return event ? detail(event, (await getUser())?.id) : null;
+  return event ? detail(event, options) : null;
 }
 export async function getAdminOverview(): Promise<AdminOverview> {
   await requireAdmin();

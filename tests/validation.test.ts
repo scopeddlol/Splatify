@@ -11,7 +11,28 @@ import {
   gearSchema,
   idSchema,
   tokenSchema,
+  planningEventSchema,
 } from "../src/lib/validation";
+
+test("planning defaults preserve private events and strictly validate invitation settings", () => {
+  const defaults = planningEventSchema.parse({});
+  assert.equal(defaults.visibility, "private");
+  assert.equal(defaults.memberInvitesEnabled, true);
+  assert.equal(defaults.invitationHeading, "You are invited!");
+  assert.equal(
+    planningEventSchema.parse({ memberInvitesEnabled: "false" })
+      .memberInvitesEnabled,
+    false,
+  );
+  for (const input of [
+    { visibility: "unlisted" },
+    { accentColor: "url(evil)" },
+    { memberInvitesEnabled: "anything" },
+    { invitationMessage: "x".repeat(3001) },
+    { city: "x".repeat(101) },
+  ])
+    assert.equal(planningEventSchema.safeParse(input).success, false);
+});
 
 const event = {
   title: "Weekend paintball",

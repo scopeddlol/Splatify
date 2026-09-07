@@ -10,6 +10,14 @@ import {
 export function token(): string {
   return randomBytes(32).toString("base64url");
 }
+export function safeReturnPath(value: unknown): string {
+  if (typeof value !== "string" || value !== value.trim()) return "/dashboard";
+  return /^(?:\/dashboard|\/profile|\/explore|\/events\/new|\/invite\/[A-Za-z0-9_-]{43}|\/days\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/(?:overview|players|schedule|gear|messages|settings))?)$/i.test(
+    value,
+  )
+    ? value
+    : "/dashboard";
+}
 export function hashToken(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }

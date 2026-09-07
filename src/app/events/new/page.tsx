@@ -9,19 +9,21 @@ export default async function NewEvent({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const user = await requireUser();
+  const user = await requireUser("/events/new");
   const settings = await getSiteSettings();
   return (
-    <Shell user={user}>
-      <div className="narrow-page">
+    <Shell user={user} active="plans">
+      <div className="narrow-page day-page">
         <Link href="/dashboard" className="text-link">
           <ArrowLeft size={16} /> All game days
         </Link>
         <div className="page-heading">
           <div>
-            <span className="eyebrow">FROM AN IDEA TO A GREAT DAY</span>
-            <h1>Let&apos;s make a plan.</h1>
-            <p>A few details now. A whole lot of good times later.</p>
+            <h1>Create a day</h1>
+            <p>
+              Start with a name, a place, and a date. Add the rest when you are
+              ready.
+            </p>
           </div>
         </div>
         <Notice params={await searchParams} />

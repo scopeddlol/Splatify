@@ -74,6 +74,16 @@ jobs:
           docker compose up -d --wait --wait-timeout 180 db migrate web
           curl --fail --silent http://127.0.0.1:3000/api/health
           curl --fail --silent --output /dev/null http://127.0.0.1:3000/
+          curl --fail --silent --output /dev/null http://127.0.0.1:3000/explore
+          curl --fail --silent --output /dev/null http://127.0.0.1:3000/manifest.webmanifest
+          curl --fail --silent --output /dev/null http://127.0.0.1:3000/icons/192
+          test "$(docker compose exec -T db psql -U splatify -d splatify -Atc 'SELECT max(version) FROM schema_migrations')" = 2
+      - name: Published image reference
+        env:
+          IMAGE: ghcr.io/scopeddlol/splatify:sha-${{ steps.revision.outputs.sha }}@${{ steps.build.outputs.digest }}
+        run: |
+          printf 'Private image verified: %s\n' "$IMAGE"
+          printf '## Published Splatify image\n\n`%s`\n\nPrivate package and Compose smoke tests verified.\n' "$IMAGE" >> "$GITHUB_STEP_SUMMARY"
 
   deploy:
     needs: publish

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import {
   CalendarDays,
   Crosshair,
@@ -7,6 +8,8 @@ import {
   Plus,
   Shield,
   ArrowUpRight,
+  Compass,
+  UserRound,
 } from "lucide-react";
 import type { User } from "@/lib/types";
 import { logoutAction } from "@/app/actions";
@@ -14,9 +17,14 @@ import { logoutAction } from "@/app/actions";
 export function Brand() {
   return (
     <Link href="/" className="brand" aria-label="Splatify home">
-      <span className="brand-mark">
-        <Crosshair size={23} strokeWidth={2.5} />
-      </span>
+      <Image
+        src="/mark.svg"
+        width={35}
+        height={35}
+        alt=""
+        className="brand-symbol"
+        unoptimized
+      />
       splatify<span className="brand-dot">.</span>
     </Link>
   );
@@ -27,26 +35,45 @@ export function Shell({
   active = "plans",
   children,
 }: {
-  user: User;
-  active?: "plans" | "admin";
+  user: User | null;
+  active?: "plans" | "admin" | "explore" | "profile";
   children: React.ReactNode;
 }) {
   return (
     <div className="app-layout">
       <aside className="sidebar">
         <Brand />
-        <div className="workspace-label">YOUR BASECAMP</div>
+        <div className="workspace-label">
+          {user ? "YOUR PAINTBALL HOME" : "COME OUT AND PLAY"}
+        </div>
         <nav className="side-nav" aria-label="Main navigation">
           <Link
-            href="/dashboard"
-            className={active === "plans" ? "active" : ""}
+            href="/explore"
+            className={active === "explore" ? "active" : ""}
           >
-            <LayoutDashboard size={18} /> My plans <span className="nav-dot" />
+            <Compass size={18} /> Explore days
           </Link>
+          {user && (
+            <>
+              <Link
+                href="/dashboard"
+                className={active === "plans" ? "active" : ""}
+              >
+                <LayoutDashboard size={18} /> My plans{" "}
+                <span className="nav-dot" />
+              </Link>
+              <Link
+                href="/profile"
+                className={active === "profile" ? "active" : ""}
+              >
+                <UserRound size={18} /> My profile
+              </Link>
+            </>
+          )}
           <Link href="/events/new">
             <Plus size={18} /> Create a day
           </Link>
-          {user.isAdmin && (
+          {user?.isAdmin && (
             <Link href="/admin" className={active === "admin" ? "active" : ""}>
               <Shield size={18} /> Owner console
             </Link>
@@ -65,26 +92,50 @@ export function Shell({
               Make it happen <ArrowUpRight size={14} />
             </Link>
           </div>
-          <div className="account">
-            <span className="avatar">
-              {user.name.slice(0, 2).toUpperCase()}
-            </span>
-            <div>
-              <strong>{user.name}</strong>
-              <small>
-                {user.isAdmin ? "Site owner" : "Game day organizer"}
-              </small>
+          {user ? (
+            <div className="account">
+              <Link href="/profile" aria-label="My profile">
+                {user.avatarId ? (
+                  <Image
+                    className="avatar"
+                    src={`/media/${user.avatarId}`}
+                    width={38}
+                    height={38}
+                    alt=""
+                    unoptimized
+                  />
+                ) : (
+                  <span className="avatar">
+                    {user.name.slice(0, 2).toUpperCase()}
+                  </span>
+                )}
+              </Link>
+              <div>
+                <strong>{user.name}</strong>
+                <small>
+                  {user.isAdmin ? "Site owner" : "Player & organizer"}
+                </small>
+              </div>
+              <form action={logoutAction}>
+                <button
+                  className="icon-button"
+                  title="Sign out"
+                  aria-label="Sign out"
+                >
+                  <LogOut size={17} />
+                </button>
+              </form>
             </div>
-            <form action={logoutAction}>
-              <button
-                className="icon-button"
-                title="Sign out"
-                aria-label="Sign out"
-              >
-                <LogOut size={17} />
-              </button>
-            </form>
-          </div>
+          ) : (
+            <div className="public-account">
+              <Link href="/login" className="text-link">
+                Sign in
+              </Link>
+              <Link href="/signup" className="button primary small">
+                Join Splatify
+              </Link>
+            </div>
+          )}
         </div>
       </aside>
       <div className="app-body">
@@ -93,8 +144,9 @@ export function Shell({
             <span className="live-dot" /> THE GOOD DAYS DON&apos;T PLAN
             THEMSELVES.
           </span>
-          <Link href="/dashboard">
-            <CalendarDays size={16} /> Your field. Your crew.
+          <Link href={user ? "/dashboard" : "/explore"}>
+            <CalendarDays size={16} />{" "}
+            {user ? "My game days" : "Find your next game"}
           </Link>
         </header>
         <main className="main-content">{children}</main>

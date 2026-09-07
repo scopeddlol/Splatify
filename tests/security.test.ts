@@ -12,7 +12,39 @@ import {
   isAdminAccount,
   isAllowedOrigin,
   canUsePublicRecovery,
+  safeReturnPath,
 } from "../src/lib/security";
+
+test("auth return paths allow only local planning destinations", () => {
+  const day = "/days/12345678-1234-4234-8234-123456789abc";
+  for (const path of [
+    day,
+    `${day}/players`,
+    `${day}/messages`,
+    "/profile",
+    "/dashboard",
+    `/invite/${token()}`,
+  ])
+    assert.equal(safeReturnPath(path), path);
+  for (const path of [
+    null,
+    "https://evil.test",
+    "//evil.test",
+    "/\\evil.test",
+    `${day}/../admin`,
+    `${day}%2fplayers`,
+    `${day}?next=//evil.test`,
+    "/admin",
+    "/profile\n",
+    "/profile#x",
+  ])
+    assert.equal(safeReturnPath(path), "/dashboard");
+  const session = token(),
+    path = `${day}/gear`;
+  const sealed = sealCodes([path], session);
+  assert.equal(safeReturnPath(openCodes(sealed, session)[0]), path);
+  assert.equal(safeReturnPath(openCodes(sealed, token())[0]), "/dashboard");
+});
 
 test("password hashes are salted, scrypt-based, and verify only the correct password", async () => {
   const password = "a long and unique password";

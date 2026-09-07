@@ -32,6 +32,12 @@ test(
       );
       await db.query(sql);
       await db.query(sql);
+      await db.query(
+        await readFile(
+          new URL("../src/lib/migrations/002-planning.sql", import.meta.url),
+          "utf8",
+        ),
+      );
       const {
         rows: [user],
       } = await db.query(

@@ -3,6 +3,10 @@ export type User = {
   name: string;
   email: string;
   isAdmin: boolean;
+  realName: string;
+  bio: string;
+  avatarId: string | null;
+  defaultMarker: "mechanical" | "electric" | "rental";
 };
 export type Event = {
   id: string;
@@ -19,6 +23,16 @@ export type Event = {
   inviteToken: string;
   createdAt: string;
   theme: string;
+  city: string;
+  state: string;
+  country: string;
+  visibility: "private" | "public";
+  accentColor: string;
+  coverId: string | null;
+  invitationCoverId: string | null;
+  invitationHeading: string;
+  invitationMessage: string;
+  memberInvitesEnabled: boolean;
 };
 export type Guest = {
   id: string;
@@ -27,6 +41,34 @@ export type Guest = {
   marker: "mechanical" | "electric" | "rental";
   team: string;
   notes: string;
+  userId: string | null;
+  avatarId: string | null;
+  bio: string;
+  teamId: string | null;
+  teamColor: string;
+  approval: "approved" | "pending";
+};
+export type Team = {
+  id: string;
+  name: string;
+  color: string;
+  captainUserId: string | null;
+  captainName: string;
+  playerCount: number;
+};
+export type Organizer = {
+  id: string;
+  name: string;
+  avatarId: string | null;
+  isOwner: boolean;
+};
+export type Message = {
+  id: string;
+  body: string;
+  authorId: string;
+  authorName: string;
+  avatarId: string | null;
+  createdAt: string;
 };
 export type ScheduleItem = {
   id: string;
@@ -58,6 +100,22 @@ export type EventDetail = {
   isOwner: boolean;
   currentGuest: Guest | null;
   guestEditToken: string | null;
+  viewer: User | null;
+  isOrganizer: boolean;
+  isMember: boolean;
+  canViewRoster: boolean;
+  canMessage: boolean;
+  teams: Team[];
+  organizers: Organizer[];
+  messages: Message[];
+  guestTotal: number;
+  messageTotal: number;
+  guestPage: number;
+  messagePage: number;
+  goingCount: number;
+  estimatedCost: number;
+  pendingGuests: Guest[];
+  memberCandidates: Array<{ id: string; name: string }>;
 };
 export type SiteSettings = {
   registrationEnabled: boolean;

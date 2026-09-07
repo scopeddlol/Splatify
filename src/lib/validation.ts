@@ -10,6 +10,27 @@ export const passwordSchema = z
   .max(128);
 export const nameSchema = z.string().trim().min(1).max(80);
 const text = (max: number) => z.string().trim().max(max);
+export const colorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/);
+export const planningEventSchema = z.object({
+  city: text(100).default(""),
+  state: text(100).default(""),
+  country: text(100).default(""),
+  visibility: z.enum(["private", "public"]).default("private"),
+  accentColor: colorSchema.default("#d5fb51"),
+  invitationHeading: text(160).default("You are invited!"),
+  invitationMessage: text(3000).default(""),
+  memberInvitesEnabled: z
+    .preprocess(
+      (v) =>
+        v === "true" || v === "on"
+          ? true
+          : v === "false" || v === "off"
+            ? false
+            : v,
+      z.boolean(),
+    )
+    .default(true),
+});
 export const dateSchema = z.string().refine((value) => {
   if (!value) return true;
   if (
@@ -25,6 +46,7 @@ export const dateSchema = z.string().refine((value) => {
 });
 export const timeSchema = z.string().regex(/^$|^([01]\d|2[0-3]):[0-5]\d$/);
 export const eventSchema = z.object({
+  ...planningEventSchema.shape,
   title: z.string().trim().min(1).max(120),
   description: text(5000),
   date: dateSchema,

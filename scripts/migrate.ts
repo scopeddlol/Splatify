@@ -30,6 +30,18 @@ async function main() {
       await client.query(sql);
       await client.query("INSERT INTO schema_migrations(version) VALUES (1)");
     }
+    const planning = await client.query(
+      "SELECT version FROM schema_migrations WHERE version=2",
+    );
+    if (!planning.rowCount) {
+      await client.query(
+        await readFile(
+          new URL("../src/lib/migrations/002-planning.sql", import.meta.url),
+          "utf8",
+        ),
+      );
+      await client.query("INSERT INTO schema_migrations(version) VALUES (2)");
+    }
     await syncAdmin(client, admin);
     await client.query("DELETE FROM sessions WHERE expires_at <= now()");
     await client.query("DELETE FROM rate_limits WHERE expires_at <= now()");

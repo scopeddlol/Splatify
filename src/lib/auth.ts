@@ -10,6 +10,7 @@ import {
   token,
   isAdminAccount,
   isAllowedOrigin,
+  safeReturnPath,
 } from "./security";
 import { PublicError, tokenSchema } from "./validation";
 import type { User } from "./types";
@@ -31,7 +32,7 @@ export async function getUser(): Promise<User | null> {
   const value = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!value || !tokenSchema.safeParse(value).success) return null;
   const [row] = await query(
-    "SELECT u.id,u.name,u.email,u.admin_verified FROM users u JOIN sessions s ON s.user_id=u.id WHERE s.token_hash=$1 AND s.expires_at>now()",
+    "SELECT u.id,u.name,u.email,u.admin_verified,u.real_name,u.bio,u.avatar_id,u.default_marker FROM users u JOIN sessions s ON s.user_id=u.id WHERE s.token_hash=$1 AND s.expires_at>now()",
     [hashToken(value)],
   );
   return row
@@ -40,14 +41,21 @@ export async function getUser(): Promise<User | null> {
         name: row.name,
         email: row.email,
         isAdmin: isAdminAccount(row.email, row.admin_verified),
+        realName: row.real_name,
+        bio: row.bio,
+        avatarId: row.avatar_id,
+        defaultMarker: row.default_marker,
       }
     : null;
 }
-export async function requireUser(): Promise<User> {
+export async function requireUser(returnTo = "/dashboard"): Promise<User> {
   const user = await getUser();
   if (!user)
     redirect(
-      "/login?error=" + encodeURIComponent("Please sign in to continue."),
+      "/login?error=" +
+        encodeURIComponent("Please sign in to continue.") +
+        "&next=" +
+        encodeURIComponent(safeReturnPath(returnTo)),
     );
   return user;
 }
@@ -90,6 +98,25 @@ export async function clearSession(): Promise<void> {
 export async function clearRecovery(): Promise<void> {
   (await cookies()).set(RECOVERY_COOKIE, "", { ...cookieOptions, maxAge: 0 });
 }
+export async function setAuthReturn(
+  path: string,
+  session: string,
+): Promise<void> {
+  (await cookies()).set(
+    "splatify_next",
+    sealCodes([safeReturnPath(path)], session),
+    { ...cookieOptions, maxAge: 600 },
+  );
+}
+export async function consumeAuthReturn(): Promise<string> {
+  const jar = await cookies();
+  const sealed = jar.get("splatify_next")?.value;
+  const session = jar.get(SESSION_COOKIE)?.value;
+  jar.set("splatify_next", "", { ...cookieOptions, maxAge: 0 });
+  return safeReturnPath(
+    sealed && session ? openCodes(sealed, session)[0] : null,
+  );
+}
 export async function getRecoveryCodes(): Promise<string[]> {
   if (!(await getUser())) return [];
   const jar = await cookies();
@@ -114,13 +141,15 @@ export async function rateLimit(
   key: string,
   limit: number,
   seconds: number,
+  client?: PoolClient,
 ): Promise<void> {
-  const [row] = await query(
-    `INSERT INTO rate_limits(key_hash,hits,expires_at) VALUES($1,1,now()+make_interval(secs=>$2))
+  const sql = `INSERT INTO rate_limits(key_hash,hits,expires_at) VALUES($1,1,now()+make_interval(secs=>$2))
     ON CONFLICT(key_hash) DO UPDATE SET hits=CASE WHEN rate_limits.expires_at<=now() THEN 1 ELSE rate_limits.hits+1 END,
-    expires_at=CASE WHEN rate_limits.expires_at<=now() THEN now()+make_interval(secs=>$2) ELSE rate_limits.expires_at END RETURNING hits`,
-    [hashToken(key), seconds],
-  );
+    expires_at=CASE WHEN rate_limits.expires_at<=now() THEN now()+make_interval(secs=>$2) ELSE rate_limits.expires_at END RETURNING hits`;
+  const values = [hashToken(key), seconds];
+  const [row] = client
+    ? (await client.query(sql, values)).rows
+    : await query(sql, values);
   if (row.hits > limit)
     throw new PublicError("Too many attempts. Please try again later.");
 }

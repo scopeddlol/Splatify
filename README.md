@@ -1,8 +1,40 @@
 # Splatify
 
-Self-hosted event planning with private invitations, accountless RSVPs, schedules,
-gear lists, announcements, and polls. Built with Next.js 16, React 19, and PostgreSQL
-using `pg` and raw SQL. No SMTP, hosted authentication, or ORM is required.
+Self-hosted paintball day planning with opt-in public discovery, private invitations,
+accountless RSVPs, player profiles, teams, schedules, gear lists, announcements,
+polls, and member messages. Built with Next.js 16, React 19, and PostgreSQL using
+`pg` and raw SQL. No SMTP, hosted authentication, external image storage, or ORM is
+required.
+
+## Planning Features
+
+- `/explore` is public, with city, state/region, and keyword search and 12 days per
+  page. It lists public days dated today or later, plus days without a date. City
+  search is case-insensitive partial matching; US state full names and abbreviations
+  (including DC) match either stored form, ignoring case and surrounding whitespace.
+- `/dashboard` requires sign-in and separates attending (account-linked RSVPs,
+  including pending requests) from organizing (owned or co-organized days), with
+  12 days per page in each view.
+- `/profile` edits display name, private real name, bio, default marker, and avatar.
+  Display name and marker supply RSVP defaults. Player cards use display names,
+  avatars, and bios, never the private `realName` field. The administrator's display
+  name remains environment-managed.
+- `/days/{id}` has focused overview, players, schedule, gear, messages, and settings
+  sections. Overview includes announcements and polls for approved players. Rosters
+  and messages are paginated at 20 per page; planning sections require approval or
+  organizer access, and settings require organizer access.
+- Organizers can customize day colors and cover images plus invitation heading,
+  message, and a separate invitation header image.
+- Co-organizers have full day-planning access, including approvals, invite rotation,
+  images, teams, captain appointments, and message moderation. Only the original
+  owner can appoint/remove co-organizers or delete the day through planning controls;
+  site administrators retain their separate administrative deletion controls.
+- Captains must be approved, signed-in, non-declined players. They can rename/recolor
+  their own team, recruit approved unassigned players, and release their own players,
+  but cannot take players from another team or appoint captains.
+- Messages are available to organizers and signed-in, account-linked, approved
+  attendees marked going or maybe. Accountless guests cannot read or send messages.
+  Authors can delete their own messages; organizers can moderate any day message.
 
 ## Privacy And Accounts
 
@@ -10,6 +42,29 @@ using `pg` and raw SQL. No SMTP, hosted authentication, or ORM is required.
 - Invitation URLs are bearer links: anyone holding one can access the invitation.
   Personal RSVP edit links grant editing access and must be kept private. Do not
   send these URLs to analytics, public issue trackers, or shared logs.
+- Public posting is opt-in; new and migrated days default to private. Public
+  previews expose event details, including venue/address, date, covers, availability,
+  and the exact aggregate estimated cost per player. They do not expose guest rows,
+  player profiles, messages, or itemized planning data. Cost is the sum of gear-line
+  `cost` values, not `cost * quantity`; it is an estimate, not a payment or charge.
+- Turning off `memberInvitesEnabled` requires organizer approval for **all new
+  non-organizer join requests**, whether public or private, signed-in or accountless,
+  and even when using an organizer's invitation link. Existing approved RSVPs remain
+  approved; pending requests still need approval. The owner or a co-organizer can
+  approve requests, subject to capacity.
+- With member invitations off, member share controls are hidden and the raw invite
+  token is withheld from member day/list data. This cannot un-forward an existing
+  bearer link: holders can still open it and request approval. Rotate the invitation
+  to invalidate previously shared invitation URLs.
+- New private guest edit links use `/rsvp/{eventId}?editToken=...` and survive invite
+  rotation. Older `/invite/{inviteToken}?editToken=...` links still work while that
+  invitation token is valid. Both require an explicit confirmation POST; opening a
+  link alone does not claim it. Guest cookies also survive invitation rotation.
+- Saving an unlinked guest RSVP while signed in links it to that account. Thereafter
+  only that account can edit it; old guest cookies and personal edit links no longer
+  authorize it. Account-linked RSVPs and poll voting work across devices without a
+  guest edit cookie. Login and signup preserve an allowed local `next` destination;
+  signup returns there after recovery-code acknowledgement.
 - Ordinary accounts receive single-use recovery codes. Store them in a password
   manager when shown; there is no email-based password recovery. Losing both the
   password and recovery codes means there is no self-service recovery.
@@ -46,6 +101,11 @@ The migration script loads `.env*` using `@next/env`. The initial schema lives i
 `src/lib/schema.sql`, not `scripts/schema.sql`; `scripts/migrate.ts` records migration
 versions and holds a PostgreSQL advisory lock. Add new migration versions for
 deployed changes instead of editing a previously applied schema.
+Migration 2, `src/lib/migrations/002-planning.sql`, is additive: it adds profiles,
+media, discovery/invitation fields, co-organizers, normalized teams, approvals, and
+messages. Existing free-text guest teams become team records and assignments;
+existing RSVPs remain approved and existing events remain private. Run the versioned
+runner to upgrade, not the migration SQL directly on every startup.
 
 ```sh
 npm run lint
@@ -59,6 +119,35 @@ environment. Do not assume `npm test` loads `.env`. Tests create temporary schem
 the test role needs schema creation privileges. Never point this variable at
 production. CI supplies it explicitly and migrates its disposable PostgreSQL service
 before lint, typecheck, tests, and build.
+
+Browser smoke tests are separate, optional scripts using an **external** Playwright
+installation, not part of `npm test` or CI's unit/integration command. They are being
+updated for the v2 routes and UI; do not treat their presence as a passing v2 browser
+verification. See [backend verification](scripts/BACKEND.md#verification) for explicit
+disposable-database, browser, and screenshot environment settings.
+
+## Images And App Icons
+
+Avatars, day covers, and invitation images are self-hosted in PostgreSQL `media.data`
+(`bytea`). Uploads must be still JPEG, PNG, or WebP files no larger than 4 MiB.
+`sharp` verifies the decoded format rather than trusting the filename or declared
+MIME type, rejects inputs over 20 million decoded pixels, strips metadata, and
+re-encodes WebP. Images are bounded to 512 pixels for avatars or 1600 pixels for
+covers/invitations without enlargement; processed output is also capped at 4 MiB.
+The server-action request-body limit is `6mb`, allowing multipart overhead, not
+6 MB images. Review reverse-proxy body limits if valid uploads are rejected.
+
+Images are served by the same-origin `/media/{id}` route with authorization,
+`Cache-Control: private, no-store`, and `nosniff`. Public days and valid invitations
+can expose event covers, not private player avatars; avatars require self-access
+or authorized shared-day access. No object-storage credentials or additional upload
+volume are needed. PostgreSQL backups include all uploaded images, so account for
+their size in database capacity and backup/restore planning.
+
+The web manifest starts at `/explore`. The favicon uses `public/mark.svg`, and
+`/icons/180`, `/icons/192`, and `/icons/512` generate PNGs from that same mark for
+Apple and manifest icons. This is app-icon/standalone-display support, not offline
+functionality: no service worker or offline caching of private data is implemented.
 
 ## Containers
 
@@ -218,7 +307,8 @@ and update the environment during a maintenance window.
 
 Back up before migrations and on a regular schedule. The following are Bash
 commands on the VPS; use a restricted directory and encrypt/offsite the resulting
-dump. Database backups contain personal data and live invitation/session material.
+dump. Database backups contain personal data, uploaded images, and live
+invitation/session material. No separate image-volume backup is needed.
 Back up the VPS `.env` separately in an encrypted secrets store and retain the
 deployed image digest/config revision. Monitor backup failures and test restores.
 
@@ -261,8 +351,11 @@ Accountless edit access depends on the browser cookie or saved personal edit lin
 Private links are not end-to-end encrypted and are visible to the server operator.
 There is no email verification, email recovery, or claim of verified guest identity.
 Database-backed rate limits are not a substitute for network-level abuse protection.
-Application caps include 1,000 total guests per event, 100 listed/owned events,
-100 schedule/gear/announcement items, and 50 polls per event. Integration tests do
+Application caps include 1,000 total guests per event, 100 owned events per account,
+100 teams and schedule/gear/announcement items each, 50 polls, and 10,000 messages
+per event. Discovery/dashboard pagination is separate from those caps. Notifications,
+automatic waitlists, and calendar downloads are not implemented; they are possible
+future improvements, not available features. Integration tests do
 not replace browser tests for authentication, cookies, ownership, and invitations.
 The UI is under active development; verify the complete browser journey and health
 endpoint before opening a production deployment to users.
