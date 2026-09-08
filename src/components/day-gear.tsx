@@ -9,13 +9,7 @@ export function DayGear({ detail }: { detail: EventDetail }) {
   return (
     <section className="panel">
       <h2>Gear &amp; costs</h2>
-      <p>Know what to pack and what to budget.</p>
-      {!detail.gear.length && (
-        <p className="muted">
-          Gear and costs are still being worked out. Confirm with the organizer
-          before buying anything.
-        </p>
-      )}
+      {!detail.gear.length && <p className="muted">No gear added yet.</p>}
       <div className="day-gear-list">
         {detail.gear.map((item) => (
           <article key={item.id}>
@@ -48,12 +42,12 @@ export function DayGear({ detail }: { detail: EventDetail }) {
       <div className="cost-total">
         <div>
           <strong>Estimated per player</strong>
-          <small>Planning estimate only. Nothing is charged here.</small>
+          <small>No payments collected.</small>
         </div>
         <strong>{money(detail.estimatedCost, event.currency)}</strong>
       </div>
       {detail.isOrganizer && (
-        <details className="day-advanced" open>
+        <details className="day-advanced">
           <summary>Add gear or a cost</summary>
           <form action={addGearAction} className="form-stack inset-form">
             <DayFields eventId={event.id} section="gear" />
@@ -98,10 +92,7 @@ export function DayGear({ detail }: { detail: EventDetail }) {
                 defaultValue={0}
                 required
               />
-              <span className="field-help">
-                Total per-player estimate for this line, regardless of quantity.
-                Use 0 for things to bring.
-              </span>
+              <span className="field-help">Per player, not per item.</span>
             </label>
             <Submit>Add item</Submit>
           </form>

@@ -49,6 +49,7 @@ test(
       for (const path of [
         "../src/lib/schema.sql",
         "../src/lib/migrations/002-planning.sql",
+        "../src/lib/migrations/003-community.sql",
       ])
         await db.query(await readFile(new URL(path, import.meta.url), "utf8"));
       const users: Record<string, string> = {};
@@ -263,6 +264,80 @@ test(
           await image(images.privateCover, 200);
           await image(images.memberAvatar, 200);
           await image(images.pendingAvatar, 404);
+        },
+      );
+
+      await t.test(
+        "withdrawn account and anonymous RSVPs cannot authorize private images or crew avatars",
+        async () => {
+          await db.query(
+            "UPDATE guests SET status='declined' WHERE event_id=$1 AND (user_id=$2 OR user_id IS NULL)",
+            [privateDay, users.member],
+          );
+          try {
+            await signIn(users.member);
+            jar.set(`splatify_guest_${privateDay}`, anonymousEdit);
+            await image(images.privateCover, 404);
+            await db.query(
+              "UPDATE guests SET status='going' WHERE event_id=$1 AND user_id IS NULL",
+              [privateDay],
+            );
+            await image(images.privateCover, 404);
+            await db.query(
+              "UPDATE guests SET status='declined' WHERE event_id=$1 AND user_id IS NULL",
+              [privateDay],
+            );
+            // The owner also owns a public day the member still attends.
+            await image(images.pendingAvatar, 404);
+            await image(images.publicCover, 200);
+            await signIn(null);
+            jar.set(`splatify_guest_${privateDay}`, anonymousEdit);
+            await image(images.privateCover, 404);
+            await image(images.memberAvatar, 404);
+          } finally {
+            await db.query(
+              "UPDATE guests SET status='going' WHERE event_id=$1 AND (user_id=$2 OR user_id IS NULL)",
+              [privateDay, users.member],
+            );
+          }
+        },
+      );
+
+      await t.test(
+        "public avatars require consent, site enablement and the current avatar reference",
+        async () => {
+          await signIn(null);
+          await db.query(
+            "UPDATE users SET public_profile_enabled=true,profile_slug='public-member' WHERE id=$1",
+            [users.member],
+          );
+          try {
+            await image(images.memberAvatar, 200);
+            await db.query(
+              "UPDATE settings SET public_profiles_enabled=false WHERE id=1",
+            );
+            await image(images.memberAvatar, 404);
+            await db.query(
+              "UPDATE settings SET public_profiles_enabled=true WHERE id=1",
+            );
+            await db.query("UPDATE users SET avatar_id=NULL WHERE id=$1", [
+              users.member,
+            ]);
+            await image(images.memberAvatar, 404);
+            await db.query(
+              "UPDATE users SET avatar_id=$2,public_profile_enabled=false WHERE id=$1",
+              [users.member, images.memberAvatar],
+            );
+            await image(images.memberAvatar, 404);
+          } finally {
+            await db.query(
+              "UPDATE settings SET public_profiles_enabled=true WHERE id=1",
+            );
+            await db.query(
+              "UPDATE users SET avatar_id=$2,public_profile_enabled=false WHERE id=$1",
+              [users.member, images.memberAvatar],
+            );
+          }
         },
       );
 

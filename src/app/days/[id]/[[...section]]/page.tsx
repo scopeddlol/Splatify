@@ -5,6 +5,7 @@ import { Shell, Notice } from "@/components/shell";
 import { DayCover, DayBrief, DayNav } from "@/components/day-shared";
 import { DayOverview } from "@/components/day-overview";
 import { DayPlayers } from "@/components/day-players";
+import { DayTeams } from "@/components/day-teams";
 import { DaySchedule } from "@/components/day-schedule";
 import { DayGear } from "@/components/day-gear";
 import { DayMessages } from "@/components/day-messages";
@@ -26,6 +27,7 @@ export default async function DayPage({
     ![
       "overview",
       "players",
+      "teams",
       "schedule",
       "gear",
       "messages",
@@ -43,7 +45,7 @@ export default async function DayPage({
   if (!detail) notFound();
   if (section === "settings" && !detail.isOrganizer) redirect(`/days/${id}`);
   if (
-    ["players", "schedule", "gear"].includes(section) &&
+    ["players", "teams", "schedule", "gear"].includes(section) &&
     !detail.canViewRoster
   )
     redirect(`/days/${id}`);
@@ -81,6 +83,7 @@ export default async function DayPage({
         <DayNav detail={detail} section={section} />
         {section === "overview" && <DayOverview detail={detail} />}
         {section === "players" && <DayPlayers detail={detail} />}
+        {section === "teams" && <DayTeams detail={detail} />}
         {section === "schedule" && <DaySchedule detail={detail} />}
         {section === "gear" && <DayGear detail={detail} />}
         {section === "messages" && <DayMessages detail={detail} />}

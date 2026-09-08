@@ -11,11 +11,7 @@ export function DayMessages({ detail }: { detail: EventDetail }) {
     return (
       <section className="panel">
         <h2>Join the conversation</h2>
-        <p>
-          The message board is for accepted players with an account. Sign up,
-          then save your RSVP to link it to your account. New requests may need
-          organizer approval.
-        </p>
+        <p>Sign in and link an approved RSVP to chat.</p>
         <div className="day-actions">
           {!detail.viewer && (
             <>
@@ -40,45 +36,40 @@ export function DayMessages({ detail }: { detail: EventDetail }) {
       </section>
     );
   return (
-    <section className="panel">
-      <h2>Message board</h2>
-      <p>
-        Talk with the players and organizers. Keep personal and medical
-        information private.
-      </p>
-      <form action={addMessageAction} className="form-stack">
+    <section className="panel day-chat">
+      <div className="day-row-heading">
+        <h2>Messages</h2>
+        <span>Newest first</span>
+      </div>
+      <form action={addMessageAction} className="form-stack day-composer">
         <DayFields eventId={detail.event.id} section="messages" />
         <label>
           Your message
           <textarea
             name="body"
-            rows={3}
+            rows={2}
             required
             maxLength={2000}
-            placeholder="Ask a question or make a plan with the team."
+            placeholder="Message the day..."
           />
         </label>
-        <Submit>Send message</Submit>
+        <Submit>Send</Submit>
       </form>
       <div className="day-message-list">
-        {!detail.messages.length && (
-          <p className="muted">
-            No messages on this page. Start the conversation.
-          </p>
-        )}
+        {!detail.messages.length && <p className="muted">No messages yet.</p>}
         {detail.messages.map((message) => (
-          <article key={message.id}>
+          <article
+            key={message.id}
+            className={
+              message.authorId === detail.viewer?.id
+                ? "day-message own"
+                : "day-message"
+            }
+          >
             <div className="day-row-heading">
               <DayPerson
                 name={message.authorName}
                 avatarId={message.avatarId}
-                bio={
-                  message.authorId === detail.viewer?.id
-                    ? detail.viewer.bio
-                    : detail.guests.find(
-                        (guest) => guest.userId === message.authorId,
-                      )?.bio
-                }
               />
               {(detail.isOrganizer ||
                 message.authorId === detail.viewer?.id) && (

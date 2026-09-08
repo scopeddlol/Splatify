@@ -1,90 +1,112 @@
 import Link from "next/link";
 import {
   ArrowUpRight,
-  ArrowRight,
   Crosshair,
   Users,
-  Zap,
   CalendarDays,
   Check,
-  ShieldCheck,
+  Shield,
+  MessageSquare,
+  Compass,
 } from "lucide-react";
 import { Brand } from "@/components/shell";
-import { getUser } from "@/lib/data";
+import { getUser, getSiteSettings } from "@/lib/data";
+import { TeamBadge } from "@/components/team-badge";
 
 export default async function Home() {
-  const user = await getUser();
+  const [user, site] = await Promise.all([getUser(), getSiteSettings()]);
+  const destination = site.discoveryEnabled
+    ? "/explore"
+    : user
+      ? "/dashboard"
+      : "/signup";
+  const title = site.landingTitle || "Less group chat. More game time.";
+  const split = title.lastIndexOf(". ");
   return (
-    <div className="landing">
+    <div className="landing landing-refined">
       <header className="landing-nav">
         <Brand />
         <nav>
-          <Link href="/explore">Explore days</Link>
-          <a href="#how-it-works">How it works</a>
+          {site.discoveryEnabled && <Link href="/explore">Explore</Link>}
           <Link href={user ? "/dashboard" : "/login"}>
             {user ? "My days" : "Sign in"}
           </Link>
           <Link href="/events/new" className="button primary">
-            Create a day <ArrowUpRight size={16} />
+            Create a day <ArrowUpRight size={17} />
           </Link>
         </nav>
       </header>
+      {site.siteNotice && (
+        <div className="landing-announcement" role="status">
+          <span className="live-dot" />
+          {site.siteNotice}
+        </div>
+      )}
       <main>
         <section className="landing-hero">
           <div className="hero-copy">
-            <span className="eyebrow">
-              <span className="live-dot" /> GOOD TIMES. ZERO PLANNING CHAOS.
-            </span>
+            <span className="eyebrow">PAINTBALL. PLANNED.</span>
             <h1>
-              Less group chat.
-              <br />
-              More <span>game time.</span>
+              {split >= 0 ? (
+                <>
+                  {title.slice(0, split + 1)}
+                  <br />
+                  <span>{title.slice(split + 2)}</span>
+                </>
+              ) : (
+                title
+              )}
             </h1>
             <p>
-              Find a public paintball day near you, join a friend&apos;s game,
-              or bring your own crew together. Splatify keeps the people, teams,
-              schedule, and little details in one easy-to-follow plan.
+              {site.landingSubtitle ||
+                "Find a paintball day or bring your own crew."}
             </p>
             <div className="hero-actions">
-              <Link href="/explore" className="button primary large">
-                Find your next day <ArrowUpRight size={19} />
+              <Link href={destination} className="button primary large">
+                {site.landingCta || "Find a day"}
+                <ArrowUpRight size={20} />
               </Link>
-              <Link href="/events/new" className="text-link">
-                Organize your own <ArrowRight size={17} />
-              </Link>
+              <a href="#how-it-works" className="text-link">
+                How it works
+              </a>
             </div>
             <div className="hero-trust">
               <span>
-                <Check size={15} /> Free to use
+                <Check size={16} /> Free to use
               </span>
               <span>
-                <Check size={15} /> No guest accounts needed
+                <Check size={16} /> Guest RSVPs welcome
               </span>
             </div>
           </div>
-          <div
-            className="hero-art"
-            aria-label="Illustration of a paintball game day plan"
-          >
+          <div className="hero-art" aria-label="Example paintball day roster">
             <div className="orbit orbit-one" />
             <div className="orbit orbit-two" />
             <div className="art-cross cross-one">+</div>
             <div className="art-cross cross-two">+</div>
-            <span className="art-coordinate">51.5072 / GAME ON</span>
             <div className="preview-card">
               <div className="preview-art">
-                <span className="tag">EXAMPLE GAME DAY</span>
-                <Crosshair size={146} strokeWidth={0.7} />
+                <span className="tag">EXAMPLE DAY</span>
+                <Crosshair size={160} strokeWidth={0.7} />
                 <span className="preview-number">01</span>
-                <span className="art-bottom">MAKE YOUR SATURDAY COUNT.</span>
               </div>
               <div className="preview-body">
-                <span className="eyebrow">THE WEEKEND CREW</span>
+                <span className="eyebrow">SATURDAY / 10:00 AM</span>
                 <h2>Operation: good times</h2>
-                <p>
-                  <CalendarDays size={15} /> Saturday, 10:00 AM{" "}
-                  <span className="muted">/</span> Your local field
-                </p>
+                <div className="preview-teams">
+                  <div>
+                    <TeamBadge logoIcon="shield" color="#d5fb51" />
+                    <span>
+                      Vanguard<small>6 players</small>
+                    </span>
+                  </div>
+                  <div>
+                    <TeamBadge logoIcon="skull" color="#ffad72" />
+                    <span>
+                      Outlaws<small>6 players</small>
+                    </span>
+                  </div>
+                </div>
                 <div className="preview-divider" />
                 <div className="preview-crew">
                   <div className="avatar-stack">
@@ -93,215 +115,100 @@ export default async function Home() {
                     <span>AM</span>
                     <span>+9</span>
                   </div>
-                  <span>12 players. One great day.</span>
-                  <span className="live-dot" />
+                  <span>Your crew. Ready to play.</span>
                 </div>
               </div>
             </div>
             <div className="floating-note">
               <span className="note-icon">
-                <Check size={18} />
+                <Check size={19} />
               </span>
               <div>
-                <strong>The crew is coming.</strong>
-                <small>One link. Everyone in the loop.</small>
+                <strong>You&apos;re on the roster.</strong>
+                <small>See you at the field.</small>
               </div>
             </div>
           </div>
         </section>
-        <div className="landing-strip">
-          <span>BUILT FOR EVERY KIND OF PLAYER</span>
-          <span>
-            <Crosshair size={19} /> Mechanical
-          </span>
-          <span>
-            <Zap size={19} /> Electric
-          </span>
-          <span>
-            <ShieldCheck size={19} /> First-timer friendly
-          </span>
-          <span>
-            <Users size={19} /> Whole-crew ready
-          </span>
-        </div>
-        <section id="how-it-works" className="how-section">
+        <section className="how-section" id="how-it-works">
           <div className="section-heading">
             <div>
-              <span className="eyebrow">
-                FROM &quot;WE SHOULD&quot; TO &quot;SEE YOU THERE&quot;
-              </span>
-              <h2>
-                A proper plan.
-                <br />
-                Without the project management.
-              </h2>
+              <span className="eyebrow">LESS ADMIN. MORE ACTION.</span>
+              <h2>One day. Everything sorted.</h2>
             </div>
-            <p>
-              You bring the people.
-              <br />
-              We&apos;ll keep the details together.
-            </p>
           </div>
           <div className="feature-grid">
             {[
               {
-                number: "01",
-                title: "Set the scene.",
-                text: "Pick a day, choose your field, and make it yours. Build a schedule, sort gear, and put a number on the costs.",
-                icon: CalendarDays,
+                icon: Compass,
+                title: "Find your game.",
+                text: "Explore local days or open a friend's invitation.",
               },
               {
-                number: "02",
-                title: "Rally your crew.",
-                text: "Send one private link. Friends RSVP, pick their marker, and vote on the details. No account required.",
                 icon: Users,
+                title: "Build your crew.",
+                text: "RSVP, pick teams, and share the plan.",
               },
               {
-                number: "03",
-                title: "Show up. Game on.",
-                text: "Balance the teams, post the final details, and see who's ready. Less chasing people. More playing.",
-                icon: Crosshair,
+                icon: CalendarDays,
+                title: "Show up ready.",
+                text: "Your schedule, gear, and directions in one place.",
               },
             ].map((item) => (
-              <article className="feature-card" key={item.number}>
-                <div>
-                  <item.icon size={25} />
-                  <span>{item.number}</span>
-                </div>
+              <article className="feature-card" key={item.title}>
+                <item.icon size={29} />
                 <h3>{item.title}</h3>
                 <p>{item.text}</p>
               </article>
             ))}
           </div>
         </section>
-        <section className="landing-info" id="for-everyone">
-          <div className="landing-info-heading">
-            <div>
-              <span className="eyebrow">
-                ONE ACCOUNT. BOTH SIDES OF THE DAY.
-              </span>
-              <h2>
-                You don&apos;t have to organize
-                <br />
-                to be part of the action.
-              </h2>
-            </div>
-            <p>
-              From first-timers hiring a marker to regular crews booking a
-              field, there&apos;s a place for everyone.
-            </p>
+        <section className="landing-compact">
+          <div className="compact-heading">
+            <Shield size={31} />
+            <h2>Your crew. Your rules.</h2>
           </div>
-          <div className="landing-roles">
-            <article className="landing-role">
-              <Users size={28} />
-              <h3>Here to play?</h3>
-              <p>
-                Browse by city and state, or follow a friend&apos;s invitation.
-                See where you&apos;re going, when to arrive, and what it might
-                cost before joining.
-              </p>
-              <ul>
-                {[
-                  "Build your player profile once, then RSVP with your display name and marker preference.",
-                  "Keep days you're joining in your account, even when someone else is organizing.",
-                  "See your team, open Apple or Google Maps directions, and chat with approved members.",
-                  "Not ready for an account? Guest RSVPs are still welcome.",
-                ].map((text) => (
-                  <li key={text}>
-                    <Check size={15} />
-                    {text}
-                  </li>
-                ))}
-              </ul>
-              <Link href="/explore" className="button primary">
-                Explore public days <ArrowUpRight size={16} />
-              </Link>
-            </article>
-            <article className="landing-role">
-              <CalendarDays size={28} />
-              <h3>Bringing people together?</h3>
-              <p>
-                Create a public day or keep it invitation-only. Customize the
-                colors, cover image, and welcome message, then hand guests a
-                clear plan.
-              </p>
-              <ul>
-                {[
-                  "Keep the overview, schedule, gear, and players on separate, focused pages.",
-                  "Share the planning with co-organizers and give team captains control of their own picks.",
-                  "Let your crew invite friends, or require organizer approval for every new join request.",
-                  "Post important announcement banners, run polls, and estimate costs. No payments are collected.",
-                ].map((text) => (
-                  <li key={text}>
-                    <Check size={15} />
-                    {text}
-                  </li>
-                ))}
-              </ul>
-              <Link href="/events/new" className="button secondary">
-                Create a day <ArrowUpRight size={16} />
-              </Link>
-            </article>
+          <div className="compact-features">
+            <span>Private or public days</span>
+            <span>Custom team badges</span>
+            <span>Co-organizers & captains</span>
+            <span>
+              <MessageSquare size={17} /> Member chat
+            </span>
           </div>
-          <div className="landing-faq">
-            <h2>A few things worth knowing.</h2>
-            {[
-              {
-                question: "Is Splatify really free?",
-                answer:
-                  "Splatify is free to use for planning and joining days. Paintball venue entry, rentals, paint, and travel are separate costs arranged with your organizer or field. The cost numbers in a plan are estimates, not charges.",
-              },
-              {
-                question: "Can I join without creating an account?",
-                answer:
-                  "Yes. You can browse public days and RSVP using a display name and marker choice. Keep your private RSVP edit link to return on another device. An account keeps your joined days together, saves your player profile, and unlocks the member message board after approval.",
-              },
-              {
-                question: "Who can see my information?",
-                answer:
-                  "Public visitors see a day preview, not its roster or messages. Accepted players and organizers can see shared display names, avatars, bios, and RSVP details. Your profile's real-name field stays private. Only approved signed-in participants and organizers can use the message board.",
-              },
-              {
-                question: "What happens when a day requires approval?",
-                answer:
-                  "Your RSVP becomes a join request. An organizer reviews it before you get access to player information and the full plan. Your place is not confirmed until approved, and capacity is checked at approval time.",
-              },
-              {
-                question:
-                  "Does Splatify book the field or handle safety waivers?",
-                answer:
-                  "No. Organizers still need to confirm venue availability, age limits, marker rules, waivers, and payment arrangements directly with the field. Always follow the venue's safety rules.",
-              },
-            ].map((item) => (
-              <details key={item.question}>
-                <summary>{item.question}</summary>
-                <p>{item.answer}</p>
-              </details>
-            ))}
-          </div>
-        </section>
-        <section className="closing-cta">
-          <Crosshair size={44} />
-          <h2>
-            Your next great day
-            <br />
-            starts right here.
-          </h2>
-          <Link
-            href={user ? "/dashboard" : "/signup"}
-            className="button primary large"
-          >
-            {user ? "Open my game days" : "Find your place in the crew"}{" "}
-            <ArrowUpRight size={18} />
+          <Link href="/events/new" className="button secondary">
+            Plan a day <ArrowUpRight size={17} />
           </Link>
-          <p>Free planning. No guest signup hoops.</p>
+        </section>
+        <section className="landing-faq compact-faq">
+          <h2>Quick answers.</h2>
+          {[
+            {
+              q: "Do guests need an account?",
+              a: "No. An account saves your days, profile, and loadout, and unlocks member chat.",
+            },
+            {
+              q: "Who can see my profile?",
+              a: "Your crew sees your player card. A public profile is optional; private events are never named there.",
+            },
+            {
+              q: "Does Splatify book the field?",
+              a: "No. Arrange bookings, waivers, and payments with the venue. Costs shown here are estimates.",
+            },
+          ].map((item) => (
+            <details key={item.q}>
+              <summary>{item.q}</summary>
+              <p>{item.a}</p>
+            </details>
+          ))}
         </section>
       </main>
       <footer className="landing-footer">
         <Brand />
-        <span>Less organizing. More adrenaline.</span>
-        <Link href="/explore">
-          See what&apos;s happening near you <ArrowRight size={15} />
+        <span>Less organizing. More playing.</span>
+        <Link href={destination}>
+          {user ? "My days" : "Get started"}
+          <ArrowUpRight size={16} />
         </Link>
       </footer>
     </div>

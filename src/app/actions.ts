@@ -9,7 +9,7 @@ import {
   getUser,
   protectAction,
   rateLimit,
-  isAdminAccount,
+  requireActiveSession,
   createSession,
   setSession,
   clearSession,
@@ -45,8 +45,12 @@ import {
   fields,
   planningEventSchema,
   colorSchema,
+  teamIconSchema,
+  sponsorSchema,
 } from "@/lib/validation";
 import type { User } from "@/lib/types";
+import { lockOwner } from "@/lib/owner";
+import { replaceCredentials } from "@/lib/profile";
 
 async function run(
   fallback: string,
@@ -79,7 +83,7 @@ function eventPath(form: FormData): string {
   const id = field(form, "eventId");
   const section = field(form, "returnSection");
   return idSchema.safeParse(id).success
-    ? `/days/${id}${["overview", "players", "schedule", "gear", "messages", "settings"].includes(section) ? `/${section}` : ""}`
+    ? `/days/${id}${["overview", "players", "teams", "schedule", "gear", "messages", "settings"].includes(section) ? `/${section}` : ""}`
     : "/dashboard";
 }
 function invitePath(form: FormData): string {
@@ -111,16 +115,6 @@ async function actor(admin = false): Promise<User> {
   await rateLimit(`user:${user.id}`, 120, 60);
   return user;
 }
-async function adminLock(client: PoolClient, user: User): Promise<void> {
-  const {
-    rows: [row],
-  } = await client.query(
-    "SELECT email,admin_verified FROM users WHERE id=$1 FOR UPDATE",
-    [user.id],
-  );
-  if (!row || !isAdminAccount(row.email, row.admin_verified))
-    throw new PublicError("Administrator access required.");
-}
 async function owned(
   form: FormData,
   work: (
@@ -132,6 +126,7 @@ async function owned(
   const user = await actor();
   const eventId = idSchema.parse(field(form, "eventId"));
   await transaction(async (client) => {
+    await requireActiveSession(client, user.id);
     const {
       rows: [event],
     } = await client.query(
@@ -163,17 +158,30 @@ async function planningFields(
     invitationHeading: existing.invitation_heading,
     invitationMessage: existing.invitation_message,
     memberInvitesEnabled: existing.member_invites_enabled,
+    sponsorsEnabled: existing.sponsors_enabled,
     ...fields(form),
     ...(form.has("memberInvitesEnabledPresent")
       ? { memberInvitesEnabled: form.has("memberInvitesEnabled") }
+      : {}),
+    ...(form.has("sponsorsEnabledPresent")
+      ? { sponsorsEnabled: form.has("sponsorsEnabled") }
       : {}),
   });
   if (e.visibility === "public" && (!e.city || !e.state))
     throw new PublicError(
       "Add a city and state or region so players can find your public day.",
     );
+  if (e.sponsorsEnabled && !existing.sponsors_enabled) {
+    const {
+      rows: [settings],
+    } = await client.query(
+      "SELECT sponsors_enabled FROM settings WHERE id=1 FOR SHARE",
+    );
+    if (!settings?.sponsors_enabled)
+      throw new PublicError("Sponsors are currently disabled.");
+  }
   await client.query(
-    "UPDATE events SET city=$2,state=$3,country=$4,visibility=$5,accent_color=$6,invitation_heading=$7,invitation_message=$8,member_invites_enabled=$9 WHERE id=$1",
+    "UPDATE events SET city=$2,state=$3,country=$4,visibility=$5,accent_color=$6,invitation_heading=$7,invitation_message=$8,member_invites_enabled=$9,sponsors_enabled=$10 WHERE id=$1",
     [
       eventId,
       e.city,
@@ -184,6 +192,7 @@ async function planningFields(
       e.invitationHeading,
       e.invitationMessage,
       e.memberInvitesEnabled,
+      e.sponsorsEnabled,
     ],
   );
 }
@@ -205,6 +214,7 @@ async function eventAccess(
   form: FormData,
   user: User | null,
 ) {
+  if (user) await requireActiveSession(client, user.id);
   const id = field(form, "eventId"),
     invite = field(form, "inviteToken");
   const {
@@ -379,7 +389,7 @@ export async function recoverAction(form: FormData): Promise<void> {
       await rateLimit(`recover:${email}`, 6, 900);
       await rateLimit("auth:global", 300, 900);
       const passwordHash = await hashPassword(password);
-      const raw = await transaction(async (client) => {
+      const credentials = await transaction(async (client) => {
         const {
           rows: [user],
         } = await client.query(
@@ -394,23 +404,21 @@ export async function recoverAction(form: FormData): Promise<void> {
         );
         if (!used.rowCount)
           throw new PublicError("Email or recovery code is incorrect.");
-        await client.query("UPDATE users SET password_hash=$1 WHERE id=$2", [
-          passwordHash,
+        const credentials = await replaceCredentials(
+          client,
           user.id,
-        ]);
-        await client.query("DELETE FROM sessions WHERE user_id=$1", [user.id]);
+          passwordHash,
+        );
         await logActivity(
           client,
           "user.recovered",
           `Account ${user.id} recovered; all previous sessions revoked`,
         );
-        return createSession(client, user.id);
+        return credentials;
       });
-      await setSession(raw);
-      return success(
-        safeReturnPath(field(form, "next")),
-        "Password reset. Your recovery code has been used.",
-      );
+      await setSession(credentials.raw, credentials.codes);
+      await setAuthReturn(safeReturnPath(field(form, "next")), credentials.raw);
+      return "/recovery-codes";
     },
   );
 }
@@ -430,6 +438,7 @@ export async function createEventAction(form: FormData): Promise<void> {
       await client.query("SELECT id FROM users WHERE id=$1 FOR UPDATE", [
         user.id,
       ]);
+      await requireActiveSession(client, user.id);
       const {
         rows: [settings],
       } = await client.query(
@@ -605,8 +614,8 @@ export async function assignTeamAction(
       );
       if (
         !guest ||
-        (!isOrganizer &&
-          (guest.approval !== "approved" || guest.status === "declined"))
+        guest.approval !== "approved" ||
+        guest.status === "declined"
       )
         throw new PublicError("Select an accepted player.");
       let teamId = field(form, "teamId")
@@ -637,7 +646,11 @@ export async function assignTeamAction(
         : null;
       if (teamId && !team) throw new PublicError("Team not found.");
       if (!isOrganizer) {
-        if (member?.approval !== "approved" || member.status === "declined")
+        if (
+          member?.user_id !== user.id ||
+          member.approval !== "approved" ||
+          member.status === "declined"
+        )
           throw new PublicError("Captain access required.");
         const own = (
           await client.query(
@@ -663,6 +676,176 @@ export async function assignTeamAction(
     return success(eventPath(form));
   });
 }
+export async function batchAssignTeamAction(form: FormData): Promise<void> {
+  await run(eventPath(form), async () => {
+    const user = await actor();
+    const guestIds = z
+      .array(idSchema)
+      .min(1)
+      .max(100)
+      .parse([...new Set(form.getAll("guestIds"))]);
+    const teamId = field(form, "teamId")
+      ? idSchema.parse(field(form, "teamId"))
+      : null;
+    await transaction(async (client) => {
+      const {
+        event,
+        isOrganizer,
+        guest: member,
+      } = await eventAccess(client, form, user);
+      const { rows: guests } = await client.query(
+        "SELECT id,team_id FROM guests WHERE event_id=$1 AND id=ANY($2::uuid[]) AND approval='approved' AND status<>'declined'",
+        [event.id, guestIds],
+      );
+      if (guests.length !== guestIds.length)
+        throw new PublicError("Select accepted players from this day.");
+      const team = teamId
+        ? (
+            await client.query(
+              "SELECT * FROM teams WHERE event_id=$1 AND id=$2",
+              [event.id, teamId],
+            )
+          ).rows[0]
+        : null;
+      if (teamId && !team) throw new PublicError("Team not found.");
+      if (!isOrganizer) {
+        if (
+          member?.user_id !== user.id ||
+          member.approval !== "approved" ||
+          member.status === "declined"
+        )
+          throw new PublicError("Captain access required.");
+        const { rows: own } = await client.query(
+          "SELECT id FROM teams WHERE event_id=$1 AND captain_user_id=$2",
+          [event.id, user.id],
+        );
+        if (
+          teamId
+            ? team.captain_user_id !== user.id ||
+              guests.some((g) => g.team_id && g.team_id !== teamId)
+            : guests.some((g) => !own.some((t) => t.id === g.team_id))
+        )
+          throw new PublicError(
+            "Captains may only select unassigned players or release their own players.",
+          );
+      }
+      await client.query(
+        "UPDATE guests SET team_id=$3,team=$4 WHERE event_id=$1 AND id=ANY($2::uuid[])",
+        [event.id, guestIds, teamId, team?.name ?? ""],
+      );
+      await logActivity(
+        client,
+        "team.assigned",
+        `${guestIds.length} players assigned in event ${event.id} by ${user.id}`,
+      );
+    });
+    return success(eventPath(form));
+  });
+}
+
+export async function withdrawRsvpAction(form: FormData): Promise<void> {
+  await run(invitePath(form), async () => {
+    const user = await getUser();
+    await transaction(async (client) => {
+      const { event, guest } = await eventAccess(client, form, user);
+      if (!guest) throw new PublicError("Your RSVP was not found.");
+      await client.query(
+        "UPDATE guests SET status='declined',team_id=NULL,team='' WHERE event_id=$1 AND id=$2",
+        [event.id, guest.id],
+      );
+      await client.query(
+        "UPDATE teams SET captain_user_id=NULL WHERE event_id=$1 AND captain_user_id=$2",
+        [event.id, guest.user_id],
+      );
+      await logActivity(
+        client,
+        "guest.withdrawn",
+        `RSVP ${guest.id} withdrawn from event ${event.id}`,
+      );
+      form.set("eventId", event.id);
+    });
+    return success(eventPath(form), "Your RSVP has been withdrawn.");
+  });
+}
+
+export async function setAttendanceAction(form: FormData): Promise<void> {
+  await run(eventPath(form), () =>
+    owned(form, async (client, eventId) => {
+      const guestId = idSchema.parse(field(form, "guestId"));
+      const attended = form.has("attended");
+      const result = await client.query(
+        "UPDATE guests SET attended=$3,attended_at=CASE WHEN $3 THEN COALESCE(attended_at,now()) ELSE NULL END WHERE event_id=$1 AND id=$2 AND approval='approved' AND status<>'declined' AND (NOT $3 OR EXISTS(SELECT 1 FROM events WHERE id=$1 AND date IS NOT NULL AND date<=CURRENT_DATE))",
+        [eventId, guestId, attended],
+      );
+      if (!result.rowCount)
+        throw new PublicError(
+          "Select an accepted player. Attendance requires a dated day that is not in the future.",
+        );
+      await logActivity(
+        client,
+        "guest.attendance",
+        `Attendance ${attended ? "marked" : "cleared"} for guest ${guestId} in event ${eventId}`,
+      );
+    }),
+  );
+}
+
+export async function addSponsorAction(form: FormData): Promise<void> {
+  await run(eventPath(form), () =>
+    owned(form, async (client, eventId) => {
+      const sponsor = sponsorSchema.parse(fields(form));
+      const {
+        rows: [settings],
+      } = await client.query(
+        "SELECT sponsors_enabled FROM settings WHERE id=1 FOR SHARE",
+      );
+      if (!settings?.sponsors_enabled)
+        throw new PublicError("Sponsors are currently disabled.");
+      const {
+        rows: [count],
+      } = await client.query(
+        "SELECT count(*)::int AS n,COALESCE(max(position),-1)+1 AS position FROM event_sponsors WHERE event_id=$1",
+        [eventId],
+      );
+      if (count.n >= 12)
+        throw new PublicError("This day has reached its 12 sponsor limit.");
+      await client.query(
+        "INSERT INTO event_sponsors(event_id,name,url,position) VALUES($1,$2,$3,$4)",
+        [eventId, sponsor.name, sponsor.url, count.position],
+      );
+      await logActivity(
+        client,
+        "sponsor.created",
+        `Sponsor added to event ${eventId}`,
+      );
+    }),
+  );
+}
+
+export async function deleteSponsorAction(form: FormData): Promise<void> {
+  await run(eventPath(form), () =>
+    owned(form, async (client, eventId) => {
+      const {
+        rows: [settings],
+      } = await client.query(
+        "SELECT sponsors_enabled FROM settings WHERE id=1 FOR SHARE",
+      );
+      if (!settings?.sponsors_enabled)
+        throw new PublicError("Sponsors are currently disabled.");
+      const result = await client.query(
+        "DELETE FROM event_sponsors WHERE event_id=$1 AND id=$2",
+        [eventId, idSchema.parse(field(form, "sponsorId"))],
+      );
+      if (!result.rowCount) throw new PublicError("Sponsor not found.");
+      await logActivity(
+        client,
+        "sponsor.deleted",
+        `Sponsor removed from event ${eventId}`,
+      );
+    }),
+  );
+}
+
 export async function createTeamAction(
   input: FormData | string,
   name?: string,
@@ -673,6 +856,9 @@ export async function createTeamAction(
     owned(form, async (client, eventId) => {
       const name = z.string().trim().min(1).max(60).parse(field(form, "name"));
       const color = colorSchema.parse(field(form, "color") || "#d5fb51");
+      const logoIcon = teamIconSchema.parse(
+        form.has("logoIcon") ? field(form, "logoIcon") : "shield",
+      );
       const {
         rows: [count],
       } = await client.query(
@@ -682,8 +868,8 @@ export async function createTeamAction(
       if (count.n >= 100)
         throw new PublicError("This day has reached its team limit.");
       const result = await client.query(
-        "INSERT INTO teams(event_id,name,color) VALUES($1,$2,$3) ON CONFLICT(event_id,name) DO NOTHING",
-        [eventId, name, color],
+        "INSERT INTO teams(event_id,name,color,logo_icon) VALUES($1,$2,$3,$4) ON CONFLICT(event_id,name) DO NOTHING",
+        [eventId, name, color, logoIcon],
       );
       if (!result.rowCount)
         throw new PublicError("A team with that name already exists.");
@@ -717,6 +903,7 @@ export async function updateTeamAction(
         !team ||
         (!isOrganizer &&
           (team.captain_user_id !== user.id ||
+            guest?.user_id !== user.id ||
             guest?.approval !== "approved" ||
             guest.status === "declined"))
       )
@@ -740,6 +927,9 @@ export async function updateTeamAction(
         throw new PublicError("Captains must be accepted registered players.");
       const name = z.string().trim().min(1).max(60).parse(field(form, "name"));
       const color = colorSchema.parse(field(form, "color"));
+      const logoIcon = teamIconSchema.parse(
+        form.has("logoIcon") ? field(form, "logoIcon") : team.logo_icon,
+      );
       if (
         (
           await client.query(
@@ -750,8 +940,8 @@ export async function updateTeamAction(
       )
         throw new PublicError("A team with that name already exists.");
       await client.query(
-        "UPDATE teams SET name=$3,color=$4,captain_user_id=$5 WHERE event_id=$1 AND id=$2",
-        [event.id, teamId, name, color, captain],
+        "UPDATE teams SET name=$3,color=$4,captain_user_id=$5,logo_icon=$6 WHERE event_id=$1 AND id=$2",
+        [event.id, teamId, name, color, captain, logoIcon],
       );
       await client.query(
         "UPDATE guests SET team=$3 WHERE event_id=$1 AND team_id=$2",
@@ -1031,11 +1221,16 @@ export async function submitRsvpAction(form: FormData): Promise<void> {
           ],
         );
       }
-      if (user && rsvp.status === "declined")
+      if (rsvp.status === "declined") {
+        await client.query(
+          "UPDATE guests SET team_id=NULL,team='' WHERE event_id=$1 AND status='declined' AND (user_id=$2 OR id=$3)",
+          [event.id, user?.id ?? null, guest?.id ?? null],
+        );
         await client.query(
           "UPDATE teams SET captain_user_id=NULL WHERE event_id=$1 AND captain_user_id=$2",
-          [event.id, user.id],
+          [event.id, user?.id ?? guest?.user_id ?? null],
         );
+      }
       await logActivity(
         client,
         "guest.rsvp",
@@ -1120,7 +1315,7 @@ export async function updateSettingsAction(form: FormData): Promise<void> {
     const user = await actor(true);
     const notice = z.string().trim().max(1000).parse(field(form, "siteNotice"));
     await transaction(async (client) => {
-      await adminLock(client, user);
+      await lockOwner(client, user.id, field(form, "currentPassword"));
       await client.query(
         "UPDATE settings SET registration_enabled=$1,event_creation_enabled=$2,site_notice=$3 WHERE id=1",
         [
@@ -1147,7 +1342,7 @@ export async function deleteUserAction(form: FormData): Promise<void> {
         "You cannot delete your own administrator account.",
       );
     await transaction(async (client) => {
-      await adminLock(client, user);
+      await lockOwner(client, user.id, field(form, "currentPassword"));
       const result = await client.query("DELETE FROM users WHERE id=$1", [
         userId,
       ]);
@@ -1166,7 +1361,7 @@ export async function adminDeleteEventAction(form: FormData): Promise<void> {
     const user = await actor(true);
     const eventId = idSchema.parse(field(form, "eventId"));
     await transaction(async (client) => {
-      await adminLock(client, user);
+      await lockOwner(client, user.id, field(form, "currentPassword"));
       const result = await client.query("DELETE FROM events WHERE id=$1", [
         eventId,
       ]);

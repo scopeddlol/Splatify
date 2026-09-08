@@ -1,6 +1,32 @@
 import type { PoolClient } from "pg";
 import sharp from "sharp";
 import { PublicError } from "./validation";
+import { createSession } from "./auth";
+import { hashToken, normalizeRecoveryCode, recoveryCodes } from "./security";
+
+// Caller must hold the target user lock. Every credential-reset path uses it first.
+export async function replaceCredentials(
+  client: PoolClient,
+  userId: string,
+  passwordHash: string,
+) {
+  await client.query("UPDATE users SET password_hash=$2 WHERE id=$1", [
+    userId,
+    passwordHash,
+  ]);
+  await client.query("DELETE FROM sessions WHERE user_id=$1", [userId]);
+  await client.query("DELETE FROM password_reset_links WHERE user_id=$1", [
+    userId,
+  ]);
+  await client.query("DELETE FROM recovery_codes WHERE user_id=$1", [userId]);
+  const codes = recoveryCodes();
+  for (const code of codes)
+    await client.query(
+      "INSERT INTO recovery_codes(user_id,code_hash) VALUES($1,$2)",
+      [userId, hashToken(normalizeRecoveryCode(code))],
+    );
+  return { raw: await createSession(client, userId), codes };
+}
 
 type ImagePurpose = "avatar" | "cover" | "invitation";
 const MAX_BYTES = 4 * 1024 * 1024;

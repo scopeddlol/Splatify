@@ -51,18 +51,14 @@ export function AuthPage({
                 : "WELCOME BACK, PLAYER"}
           </span>
           <h2>
-            {recover
-              ? "Recover your account."
-              : signup
-                ? "Make good days happen."
-                : "Your next day is calling."}
+            {recover ? "Recover account" : signup ? "Join Splatify" : "Sign in"}
           </h2>
           <p>
             {recover
-              ? "Use one of the recovery codes you saved when you signed up. Each code works once."
+              ? "Use a saved, single-use recovery code."
               : signup
-                ? "One free account to join days, save your player profile, chat with your crew, and organize your own events."
-                : "Sign in to pick up where you left off."}
+                ? "Your profile, days, and crew."
+                : "Welcome back."}
           </p>
           <Notice params={params} />
           <form
@@ -124,8 +120,7 @@ export function AuthPage({
             </label>
             {signup && (
               <p className="field-help">
-                We&apos;ll give you recovery codes after signup. Keep them safe:
-                there are no password reset emails.
+                Save your recovery codes after signup. No reset emails are sent.
               </p>
             )}
             <Submit>
@@ -155,8 +150,7 @@ export function AuthPage({
             {recover && <Link href={authUrl("/login")}>Back to sign in</Link>}
           </div>
           <p className="auth-footnote">
-            Just looking? <Link href="/explore">Explore public days</Link>{" "}
-            without signing in.
+            <Link href="/explore">Browse without signing in</Link>
           </p>
         </div>
       </main>

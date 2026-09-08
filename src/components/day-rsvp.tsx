@@ -1,8 +1,8 @@
 import Link from "next/link";
 import type { EventDetail } from "@/lib/types";
-import { submitRsvpAction } from "@/app/actions";
+import { submitRsvpAction, withdrawRsvpAction } from "@/app/actions";
 import { Hidden } from "./shell";
-import { CopyLink, Submit } from "./ui";
+import { CopyLink, Submit, ConfirmSubmit } from "./ui";
 
 export function DayRsvp({
   detail,
@@ -18,36 +18,25 @@ export function DayRsvp({
       <h2>{currentGuest ? "Your RSVP" : "Join the day"}</h2>
       {currentGuest?.approval === "pending" ? (
         <p className="day-pending" role="status">
-          Your request is waiting for organizer approval. You can update your
-          RSVP here while you wait.
+          Awaiting approval.
         </p>
       ) : !event.memberInvitesEnabled &&
         !currentGuest &&
         !detail.isOrganizer ? (
-        <p className="day-pending">
-          New join requests need organizer approval. Your place is not confirmed
-          until approved.
-        </p>
-      ) : (
-        <p>
-          {currentGuest
-            ? "Plans change. Keep your answer up to date."
-            : "Let the organizer know if you can make it."}
-        </p>
+        <p className="day-pending">Organizer approval required.</p>
+      ) : null}
+      {currentGuest?.status === "declined" && (
+        <p className="day-chip">Withdrawn</p>
       )}
       {!viewer && (
         <div className="day-signup">
-          <strong>Keep your days in one place.</strong>
-          <p>
-            Create an account to save your RSVP across devices and join the
-            member message board after approval. You can also RSVP as a guest.
-          </p>
+          <p>Save your days. Join the chat.</p>
           <div className="day-actions">
             <Link
               className="button secondary"
               href={`/signup?next=${encodeURIComponent(next)}`}
             >
-              Sign up &amp; return here
+              Sign up
             </Link>
             <Link
               className="text-link"
@@ -59,9 +48,7 @@ export function DayRsvp({
         </div>
       )}
       {viewer && currentGuest && !currentGuest.userId && (
-        <p className="day-pending">
-          Save your RSVP below to link this guest RSVP to your account.
-        </p>
+        <p className="day-pending">Save your RSVP to link your account.</p>
       )}
       <form action={submitRsvpAction} className="form-stack">
         {/* Initial private RSVPs must retain the original URL token, not the scrubbed detail token. */}
@@ -82,10 +69,12 @@ export function DayRsvp({
         </label>
         <label>
           Will you be there?
-          <select name="status" defaultValue={currentGuest?.status || "going"}>
+          <select
+            name="status"
+            defaultValue={currentGuest?.status === "maybe" ? "maybe" : "going"}
+          >
             <option value="going">Going</option>
             <option value="maybe">Maybe</option>
-            <option value="declined">Cannot make it</option>
           </select>
         </label>
         <label>
@@ -98,11 +87,11 @@ export function DayRsvp({
           >
             <option value="mechanical">Mechanical</option>
             <option value="electric">Electric</option>
-            <option value="rental">Rental / not sure yet</option>
+            <option value="rental">Rental / unsure</option>
           </select>
         </label>
         <label>
-          Anything players should know?
+          Day notes
           <textarea
             name="notes"
             rows={2}
@@ -110,8 +99,7 @@ export function DayRsvp({
             defaultValue={currentGuest?.notes}
           />
           <span className="field-help">
-            Shared with accepted players and organizers. Do not include private
-            or medical information.
+            Visible to accepted players. No private or medical details.
           </span>
         </label>
         <Submit>
@@ -122,20 +110,21 @@ export function DayRsvp({
               : "Send my RSVP"}
         </Submit>
       </form>
+      {currentGuest && currentGuest.status !== "declined" && (
+        <form action={withdrawRsvpAction} className="day-withdraw">
+          <Hidden name="eventId" value={event.id} />
+          {inviteToken && <Hidden name="inviteToken" value={inviteToken} />}
+          <ConfirmSubmit message="Withdraw from this day?">
+            Withdraw RSVP
+          </ConfirmSubmit>
+        </form>
+      )}
       {currentGuest && !currentGuest.userId && (
         <div className="personal-link">
-          <strong>Keep access to your RSVP</strong>
-          <p>
-            This browser remembers your RSVP. Bookmark the day to return here on
-            this device.
-          </p>
           <CopyLink path={`/days/${event.id}`} label="Copy day link" />
           {guestEditToken && (
             <>
-              <p>
-                Your personal edit link works on another device. Keep it
-                private: anyone with it can edit your guest RSVP.
-              </p>
+              <p>Keep this link private: anyone with it can edit your RSVP.</p>
               <CopyLink
                 path={`/rsvp/${event.id}?editToken=${encodeURIComponent(guestEditToken)}`}
                 label="Copy private edit link"

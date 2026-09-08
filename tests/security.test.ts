@@ -13,6 +13,8 @@ import {
   isAllowedOrigin,
   canUsePublicRecovery,
   safeReturnPath,
+  validProfileSlug,
+  resetLink,
 } from "../src/lib/security";
 
 test("auth return paths allow only local planning destinations", () => {
@@ -21,6 +23,7 @@ test("auth return paths allow only local planning destinations", () => {
     day,
     `${day}/players`,
     `${day}/messages`,
+    `${day}/teams`,
     "/profile",
     "/dashboard",
     `/invite/${token()}`,
@@ -44,6 +47,55 @@ test("auth return paths allow only local planning destinations", () => {
   const sealed = sealCodes([path], session);
   assert.equal(safeReturnPath(openCodes(sealed, session)[0]), path);
   assert.equal(safeReturnPath(openCodes(sealed, token())[0]), "/dashboard");
+});
+
+test("public profile slugs reject reserved addresses and non-ASCII paths", () => {
+  for (const slug of ["abc", "player-23", "a".repeat(30), "123"])
+    assert.equal(validProfileSlug(slug), true, slug);
+  for (const slug of [
+    "ab",
+    "a".repeat(31),
+    "-abc",
+    "abc-",
+    "player_one",
+    "ABC",
+    "admin",
+    "api",
+    "login",
+    "profile",
+    "reset",
+    "media",
+    "settings",
+    "a/b",
+    "a%2fb",
+    "abc\n",
+    "\u0430bc",
+  ])
+    assert.equal(validProfileSlug(slug), false, slug);
+});
+
+test("reset links use only a trusted configured origin and a strong token", () => {
+  const previous = process.env.APP_URL;
+  try {
+    const raw = token();
+    process.env.APP_URL = "https://splatify.example";
+    assert.equal(resetLink(raw), `https://splatify.example/reset/${raw}`);
+    assert.throws(() => resetLink("../login"));
+    for (const url of [
+      "",
+      "javascript:alert(1)",
+      "https://user:pass@splatify.example",
+      "https://splatify.example/path",
+      "https://splatify.example?x=1",
+      "https://splatify.example#x",
+    ]) {
+      process.env.APP_URL = url;
+      assert.throws(() => resetLink(raw), url);
+    }
+  } finally {
+    if (previous === undefined) delete process.env.APP_URL;
+    else process.env.APP_URL = previous;
+  }
 });
 
 test("password hashes are salted, scrypt-based, and verify only the correct password", async () => {

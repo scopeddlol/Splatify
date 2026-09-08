@@ -3,14 +3,13 @@ import type { EventDetail } from "@/lib/types";
 import {
   addAnnouncementAction,
   deleteAnnouncementAction,
-  addPollAction,
   deletePollAction,
-  voteAction,
 } from "@/app/actions";
-import { Hidden, money } from "./shell";
+import { money } from "./shell";
 import { CopyLink, Submit } from "./ui";
 import { DayDirections, DayFields, DayRemove } from "./day-shared";
 import { DayRsvp } from "./day-rsvp";
+import { PollBuilder, PollVote } from "./poll-builder";
 
 export function DayOverview({ detail }: { detail: EventDetail }) {
   const { event, isOrganizer, currentGuest } = detail;
@@ -23,15 +22,15 @@ export function DayOverview({ detail }: { detail: EventDetail }) {
           className="day-announcements"
           aria-label="Organizer announcements"
         >
-          <h2>Important updates</h2>
+          <h2>Updates</h2>
           {detail.announcements.map((note) => (
             <article key={note.id}>
               <div className="day-row-heading">
                 <time dateTime={note.createdAt}>
                   {new Date(note.createdAt).toLocaleDateString("en-US", {
-                    month: "long",
+                    month: "short",
                     day: "numeric",
-                    timeZone: "UTC",
+                    timeZone: event.timezone,
                   })}
                 </time>
                 {isOrganizer && (
@@ -52,14 +51,13 @@ export function DayOverview({ detail }: { detail: EventDetail }) {
         <div className="day-stack">
           <section className="panel">
             <h2>The plan</h2>
-            <p className="day-prose">
-              {event.description ||
-                "The organizer is putting the details together. Check back before the day."}
-            </p>
+            {event.description && (
+              <p className="day-prose">{event.description}</p>
+            )}
             <div className="day-stats">
               <div>
                 <strong>{detail.goingCount}</strong>
-                <span>players going</span>
+                <span>Going</span>
               </div>
               <div>
                 <strong>
@@ -67,65 +65,47 @@ export function DayOverview({ detail }: { detail: EventDetail }) {
                     ? Math.max(0, event.capacity - detail.goingCount)
                     : "Open"}
                 </strong>
-                <span>
-                  {event.capacity ? "places remaining" : "player limit"}
-                </span>
+                <span>{event.capacity ? "Spots left" : "Player limit"}</span>
               </div>
               <div>
                 <strong>{money(detail.estimatedCost, event.currency)}</strong>
-                <span>estimated per player</span>
+                <span>Est. per player</span>
               </div>
             </div>
-            <p className="field-help">
-              Planning estimate only. Nothing is charged here.
-            </p>
             {!detail.canViewRoster && (
-              <p className="field-help">
-                Player details and planning sections are private. RSVP and
-                receive approval to see them.
-              </p>
+              <p>Approved players can view the roster and plans.</p>
             )}
             {detail.canViewRoster && (
               <div className="day-actions">
                 <Link className="text-link" href={`/days/${event.id}/schedule`}>
-                  See the schedule
+                  Schedule
                 </Link>
                 <Link className="text-link" href={`/days/${event.id}/gear`}>
-                  Check gear &amp; costs
+                  Gear &amp; costs
                 </Link>
               </div>
             )}
           </section>
           <DayDirections event={event} />
           {isOrganizer && (
-            <section className="panel">
-              <h2>Post an announcement</h2>
-              <p>
-                Important updates appear at the top of the overview for accepted
-                players.
-              </p>
-              <form action={addAnnouncementAction} className="form-stack">
+            <details className="panel">
+              <summary>Post an announcement</summary>
+              <form
+                action={addAnnouncementAction}
+                className="form-stack inset-form"
+              >
                 <DayFields eventId={event.id} />
                 <label>
                   Update
-                  <textarea
-                    name="body"
-                    required
-                    rows={3}
-                    maxLength={3000}
-                    placeholder="Arrival changes, weather updates, or a reminder for everyone."
-                  />
+                  <textarea name="body" required rows={2} maxLength={3000} />
                 </label>
                 <Submit>Post update</Submit>
               </form>
-            </section>
+            </details>
           )}
-          {detail.canViewRoster && (
+          {detail.canViewRoster && (detail.polls.length > 0 || isOrganizer) && (
             <section className="panel">
-              <h2>Player polls</h2>
-              {detail.polls.length === 0 && (
-                <p className="muted">No decisions to vote on yet.</p>
-              )}
+              <h2>Polls</h2>
               {detail.polls.map((poll) => (
                 <article className="day-poll" key={poll.id}>
                   <div className="day-row-heading">
@@ -139,104 +119,67 @@ export function DayOverview({ detail }: { detail: EventDetail }) {
                       />
                     )}
                   </div>
-                  <div className="day-stack">
-                    {poll.options.map((option) => (
-                      <form action={voteAction} key={option.id}>
-                        <DayFields eventId={event.id} />
-                        <Hidden name="pollId" value={poll.id} />
-                        <Hidden name="optionId" value={option.id} />
-                        <fieldset disabled={!canVote} className="day-vote">
-                          <Submit
-                            className={`button ${poll.myVote === option.id ? "primary" : "secondary"}`}
-                          >
-                            {poll.myVote === option.id ? "Your vote: " : ""}
-                            {option.label} ({option.votes})
-                          </Submit>
-                        </fieldset>
-                      </form>
-                    ))}
-                  </div>
-                  <p className="field-help">
-                    {canVote
-                      ? "Choose an option. You can change your vote."
-                      : "RSVP as going or maybe and receive approval to vote."}
-                  </p>
+                  <PollVote
+                    key={`${poll.id}:${poll.myVote}`}
+                    eventId={event.id}
+                    poll={poll}
+                    canVote={canVote}
+                  />
                 </article>
               ))}
               {isOrganizer && (
                 <details className="day-advanced">
                   <summary>Create a poll</summary>
-                  <form
-                    action={addPollAction}
-                    className="form-stack inset-form"
-                  >
-                    <DayFields eventId={event.id} />
-                    <label>
-                      Question
-                      <input name="question" maxLength={240} required />
-                    </label>
-                    <label>
-                      Options
-                      <textarea
-                        name="options"
-                        rows={4}
-                        required
-                        maxLength={1000}
-                      />
-                      <span className="field-help">
-                        One per line. Use 2 to 6 unique options, up to 120
-                        characters each.
-                      </span>
-                    </label>
-                    <Submit>Create poll</Submit>
-                  </form>
+                  <PollBuilder eventId={event.id} />
                 </details>
               )}
             </section>
           )}
-          <section className="day-safety">
-            <h3>Play safe</h3>
-            <p>
-              Follow the field rules, attend the safety briefing, and keep your
-              mask on in live areas. Confirm age limits, waivers, and marker
-              rules with the venue.
-            </p>
-          </section>
+          {event.sponsorsEnabled && detail.sponsors.length > 0 && (
+            <section className="day-sponsors" aria-label="Sponsors">
+              <h2>Sponsors</h2>
+              <div className="day-actions">
+                {detail.sponsors.map((sponsor) =>
+                  sponsor.url ? (
+                    <a
+                      key={sponsor.id}
+                      href={sponsor.url}
+                      target="_blank"
+                      rel="noreferrer sponsored"
+                    >
+                      {sponsor.name}
+                    </a>
+                  ) : (
+                    <span className="day-chip" key={sponsor.id}>
+                      {sponsor.name}
+                    </span>
+                  ),
+                )}
+              </div>
+            </section>
+          )}
+          <p className="day-safety">
+            Follow field rules. Keep your mask on in live areas.
+          </p>
         </div>
         <aside className="day-stack">
           <DayRsvp detail={detail} />
           {event.inviteToken && (isOrganizer || event.memberInvitesEnabled) && (
             <section className="panel">
-              <h2>Bring your people</h2>
-              <p>
-                {event.memberInvitesEnabled
-                  ? "Share the invitation so friends can RSVP."
-                  : "Only organizers can share this invitation. New requests will wait for approval."}
-              </p>
+              <h2>Invite players</h2>
               <CopyLink path={`/invite/${event.inviteToken}`} />
               <Link className="text-link" href={`/invite/${event.inviteToken}`}>
                 Preview invitation
               </Link>
             </section>
           )}
-          {!event.memberInvitesEnabled &&
-            !isOrganizer &&
-            detail.canViewRoster && (
-              <section className="panel">
-                <h3>Invitations are organizer-managed</h3>
-                <p>
-                  Ask an organizer to invite someone. New join requests need
-                  approval.
-                </p>
-              </section>
-            )}
           {detail.organizers.length > 0 && (
             <section className="panel">
-              <h2>Your organizers</h2>
+              <h2>Organizers</h2>
               {detail.organizers.map((organizer) => (
                 <p key={organizer.id}>
                   {organizer.name}
-                  {organizer.isOwner ? " (day owner)" : ""}
+                  {organizer.isOwner && <span className="day-chip">Owner</span>}
                 </p>
               ))}
             </section>

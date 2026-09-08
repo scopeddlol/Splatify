@@ -20,8 +20,8 @@ import type {
 } from "./types";
 
 export { getUser, requireUser, getRecoveryCodes } from "./auth";
-export const eventColumns = `e.id,e.owner_id AS "ownerId",e.title,e.description,COALESCE(to_char(e.date,'YYYY-MM-DD'),'') AS date,e.time,e.timezone,e.venue,e.address,e.capacity,e.currency,e.invite_token AS "inviteToken",to_char(e.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "createdAt",e.theme,e.city,e.state,e.country,e.visibility,e.accent_color AS "accentColor",e.cover_id AS "coverId",e.invitation_cover_id AS "invitationCoverId",e.invitation_heading AS "invitationHeading",e.invitation_message AS "invitationMessage",e.member_invites_enabled AS "memberInvitesEnabled"`;
-const guestColumns = `g.id,g.name,g.status,g.marker,g.team,g.notes,g.user_id AS "userId",u.avatar_id AS "avatarId",COALESCE(u.bio,'') AS bio,g.team_id AS "teamId",COALESCE(t.color,'') AS "teamColor",g.approval`;
+export const eventColumns = `e.id,e.owner_id AS "ownerId",e.title,e.description,COALESCE(to_char(e.date,'YYYY-MM-DD'),'') AS date,e.time,e.timezone,e.venue,e.address,e.capacity,e.currency,e.invite_token AS "inviteToken",to_char(e.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "createdAt",e.theme,e.city,e.state,e.country,e.visibility,e.accent_color AS "accentColor",e.cover_id AS "coverId",e.invitation_cover_id AS "invitationCoverId",e.invitation_heading AS "invitationHeading",e.invitation_message AS "invitationMessage",e.member_invites_enabled AS "memberInvitesEnabled",e.sponsors_enabled AS "sponsorsEnabled"`;
+const guestColumns = `g.id,g.name,g.status,g.marker,g.team,g.notes,g.user_id AS "userId",u.avatar_id AS "avatarId",COALESCE(u.bio,'') AS bio,g.team_id AS "teamId",COALESCE(t.color,'') AS "teamColor",g.approval,g.attended,COALESCE(u.first_name,'') AS "firstName",CASE WHEN u.public_profile_enabled AND (SELECT public_profiles_enabled FROM settings WHERE id=1) THEN u.profile_slug ELSE NULL END AS "profileSlug",COALESCE((SELECT l.name FROM loadout_items l WHERE l.user_id=u.id AND l.category='marker' ORDER BY l.position,l.id LIMIT 1),'') AS "loadoutPreview"`;
 const guestFrom =
   "guests g LEFT JOIN users u ON u.id=g.user_id LEFT JOIN teams t ON t.id=g.team_id";
 const pageNumber = (value?: number) =>
@@ -31,7 +31,7 @@ type DetailOptions = { guestPage?: number; messagePage?: number };
 export async function getSiteSettings(): Promise<SiteSettings> {
   await connection();
   const [settings] = await query<SiteSettings>(
-    'SELECT registration_enabled AS "registrationEnabled",event_creation_enabled AS "eventCreationEnabled",site_notice AS "siteNotice" FROM settings WHERE id=1',
+    'SELECT registration_enabled AS "registrationEnabled",event_creation_enabled AS "eventCreationEnabled",site_notice AS "siteNotice",landing_title AS "landingTitle",landing_subtitle AS "landingSubtitle",landing_cta AS "landingCta",accent_color AS "accentColor",discovery_enabled AS "discoveryEnabled",public_profiles_enabled AS "publicProfilesEnabled",sponsors_enabled AS "sponsorsEnabled" FROM settings WHERE id=1',
   );
   if (!settings) throw new Error("Database migrations are required");
   return settings;
@@ -41,7 +41,7 @@ export async function getMyEvents(
 ): Promise<Array<Event & { guestCount: number; goingCount: number }>> {
   const user = await requireUser();
   return query(
-    `SELECT ${eventColumns},(SELECT count(*)::int FROM guests g WHERE g.event_id=e.id AND g.approval='approved') AS "guestCount",(SELECT count(*)::int FROM guests g WHERE g.event_id=e.id AND g.status='going' AND g.approval='approved') AS "goingCount" FROM events e WHERE e.owner_id=$1 OR EXISTS(SELECT 1 FROM event_organizers o WHERE o.event_id=e.id AND o.user_id=$1) ORDER BY e.created_at DESC,e.id LIMIT 100 OFFSET $2`,
+    `SELECT ${eventColumns},(SELECT count(*)::int FROM guests g WHERE g.event_id=e.id AND g.approval='approved' AND g.status<>'declined') AS "guestCount",(SELECT count(*)::int FROM guests g WHERE g.event_id=e.id AND g.status='going' AND g.approval='approved') AS "goingCount" FROM events e WHERE e.owner_id=$1 OR EXISTS(SELECT 1 FROM event_organizers o WHERE o.event_id=e.id AND o.user_id=$1) ORDER BY e.created_at DESC,e.id LIMIT 100 OFFSET $2`,
     [user.id, (pageNumber(page) - 1) * 100],
   );
 }
@@ -80,7 +80,7 @@ async function detail(
     )[0] ?? null;
   const accepted = current?.approval === "approved";
   const isMember = accepted && current.status !== "declined";
-  const canViewRoster = isOrganizer || accepted;
+  const canViewRoster = isOrganizer || isMember;
   const canMessage =
     isOrganizer || (!!viewer && current?.userId === viewer.id && isMember);
   const guestPage = pageNumber(options.guestPage),
@@ -90,10 +90,18 @@ async function detail(
     guests: number;
     estimatedCost: number;
   }>(
-    `SELECT count(*) FILTER(WHERE approval='approved' AND status='going')::int AS going,count(*) FILTER(WHERE approval='approved')::int AS guests,(SELECT COALESCE(sum(cost),0)::float8 FROM gear_items WHERE event_id=$1) AS "estimatedCost" FROM guests WHERE event_id=$1`,
+    `SELECT count(*) FILTER(WHERE approval='approved' AND status='going')::int AS going,count(*) FILTER(WHERE approval='approved' AND status<>'declined')::int AS guests,(SELECT COALESCE(sum(cost),0)::float8 FROM gear_items WHERE event_id=$1) AS "estimatedCost" FROM guests WHERE event_id=$1`,
     [event.id],
   );
   const base: EventDetail = {
+    teamPlayers: [],
+    sponsors:
+      event.sponsorsEnabled && (await getSiteSettings()).sponsorsEnabled
+        ? await query(
+            "SELECT id,name,url FROM event_sponsors WHERE event_id=$1 ORDER BY position,id LIMIT 12",
+            [event.id],
+          )
+        : [],
     event: {
       ...event,
       inviteToken:
@@ -129,7 +137,7 @@ async function detail(
   if (!canViewRoster) return base;
   const [guests, schedule, gear, announcements, rows] = await Promise.all([
     query<Guest>(
-      `SELECT ${guestColumns} FROM ${guestFrom} WHERE g.event_id=$1 AND g.approval='approved' ORDER BY g.created_at,g.id LIMIT 20 OFFSET $2`,
+      `SELECT ${guestColumns} FROM ${guestFrom} WHERE g.event_id=$1 AND g.approval='approved' AND g.status<>'declined' ORDER BY g.created_at,g.id LIMIT 20 OFFSET $2`,
       [event.id, (guestPage - 1) * 20],
     ),
     query<ScheduleItem>(
@@ -160,7 +168,7 @@ async function detail(
   const [teams, organizers, pendingGuests, memberCandidates] =
     await Promise.all([
       query<Team>(
-        `SELECT t.id,t.name,t.color,t.captain_user_id AS "captainUserId",COALESCE(u.name,'') AS "captainName",(SELECT count(*)::int FROM guests g WHERE g.team_id=t.id AND g.approval='approved' AND g.status<>'declined') AS "playerCount" FROM teams t LEFT JOIN users u ON u.id=t.captain_user_id WHERE t.event_id=$1 ORDER BY t.name,t.id`,
+        `SELECT t.id,t.name,t.color,t.logo_icon AS "logoIcon",t.captain_user_id AS "captainUserId",COALESCE(u.name,'') AS "captainName",(SELECT count(*)::int FROM guests g WHERE g.team_id=t.id AND g.approval='approved' AND g.status<>'declined') AS "playerCount" FROM teams t LEFT JOIN users u ON u.id=t.captain_user_id WHERE t.event_id=$1 ORDER BY t.name,t.id`,
         [event.id],
       ),
       query<Organizer>(
@@ -169,7 +177,7 @@ async function detail(
       ),
       isOrganizer
         ? query<Guest>(
-            `SELECT ${guestColumns} FROM ${guestFrom} WHERE g.event_id=$1 AND g.approval='pending' ORDER BY g.created_at,g.id LIMIT 1000`,
+            `SELECT ${guestColumns} FROM ${guestFrom} WHERE g.event_id=$1 AND g.approval='pending' AND g.status<>'declined' ORDER BY g.created_at,g.id LIMIT 1000`,
             [event.id],
           )
         : [],
@@ -194,6 +202,10 @@ async function detail(
   }
   return {
     ...base,
+    teamPlayers: await query<Guest>(
+      `SELECT ${guestColumns} FROM ${guestFrom} WHERE g.event_id=$1 AND g.approval='approved' AND g.status<>'declined' ORDER BY g.created_at,g.id LIMIT 1000`,
+      [event.id],
+    ),
     teams,
     organizers,
     pendingGuests,
@@ -252,6 +264,8 @@ export async function getPublicEvents(
 }> {
   await connection();
   const page = pageNumber(filters.page);
+  if (!(await getSiteSettings()).discoveryEnabled)
+    return { events: [], total: 0, page, pageSize: 12 };
   const values = [
     filters.city?.trim().slice(0, 100) || "",
     regionSearchTerms(filters.state || ""),

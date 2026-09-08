@@ -55,10 +55,10 @@ jobs:
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ steps.revision.outputs.sha }}
-      - name: Verify container package is private
+      - name: Verify container package is public
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: test "$(gh api users/scopeddlol/packages/container/splatify --jq .visibility)" = private
+        run: test "$(gh api users/scopeddlol/packages/container/splatify --jq .visibility)" = public
       - name: Smoke test the published container and migrations
         env:
           SPLATIFY_IMAGE: ghcr.io/scopeddlol/splatify:sha-${{ steps.revision.outputs.sha }}@${{ steps.build.outputs.digest }}
@@ -77,13 +77,13 @@ jobs:
           curl --fail --silent --output /dev/null http://127.0.0.1:3000/explore
           curl --fail --silent --output /dev/null http://127.0.0.1:3000/manifest.webmanifest
           curl --fail --silent --output /dev/null http://127.0.0.1:3000/icons/192
-          test "$(docker compose exec -T db psql -U splatify -d splatify -Atc 'SELECT max(version) FROM schema_migrations')" = 2
+          test "$(docker compose exec -T db psql -U splatify -d splatify -Atc 'SELECT max(version) FROM schema_migrations')" = 3
       - name: Published image reference
         env:
           IMAGE: ghcr.io/scopeddlol/splatify:sha-${{ steps.revision.outputs.sha }}@${{ steps.build.outputs.digest }}
         run: |
-          printf 'Private image verified: %s\n' "$IMAGE"
-          printf '## Published Splatify image\n\n`%s`\n\nPrivate package and Compose smoke tests verified.\n' "$IMAGE" >> "$GITHUB_STEP_SUMMARY"
+          printf 'Public image verified: %s\n' "$IMAGE"
+          printf '## Published Splatify image\n\n`%s`\n\nPublic package and Compose smoke tests verified.\n' "$IMAGE" >> "$GITHUB_STEP_SUMMARY"
 
   deploy:
     needs: publish

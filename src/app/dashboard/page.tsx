@@ -26,12 +26,7 @@ export default async function Dashboard({
       )}
       <div className="page-heading">
         <div>
-          <span className="eyebrow">PLAYER. ORGANIZER. PART OF THE CREW.</span>
           <h1>Your game days</h1>
-          <p>
-            Welcome back, {user.name.split(" ")[0]}. Play someone else&apos;s
-            day, plan your own, or both.
-          </p>
         </div>
         {settings.eventCreationEnabled && (
           <Link href="/events/new" className="button primary">
@@ -43,14 +38,10 @@ export default async function Dashboard({
         <div className="profile-nudge">
           <UserRound size={23} />
           <div>
-            <strong>Make your player card yours.</strong>
-            <p>
-              Add a photo and marker preference. We&apos;ll use your profile
-              when you RSVP.
-            </p>
+            <strong>Build your player card.</strong>
           </div>
           <Link href="/profile" className="button secondary small">
-            Set up my profile
+            Edit profile
           </Link>
         </div>
       )}
@@ -59,13 +50,13 @@ export default async function Dashboard({
           href="/dashboard"
           aria-current={view === "attending" ? "page" : undefined}
         >
-          Days I&apos;m joining
+          Joining
         </Link>
         <Link
           href="/dashboard?view=organizing"
           aria-current={view === "organizing" ? "page" : undefined}
         >
-          Days I&apos;m organizing
+          Organizing
         </Link>
       </nav>
       <div className="section-heading compact">
@@ -74,7 +65,7 @@ export default async function Dashboard({
           <span className="count-badge">{result.total}</span>
         </h2>
         <Link href="/explore" className="text-link">
-          <Compass size={15} /> Explore public days
+          <Compass size={15} /> Explore
         </Link>
       </div>
       {result.events.length ? (
@@ -101,8 +92,8 @@ export default async function Dashboard({
             }
           >
             {view === "attending"
-              ? "Join a public day or open an invitation from a friend. RSVP while signed in and the plan stays here across devices."
-              : "Create a day and invite players. You can bring in co-organizers so the planning doesn't all fall on you."}
+              ? "Join a public day or open an invitation."
+              : "Create a day and invite your crew."}
           </Empty>
           <Link
             href={view === "attending" ? "/explore" : "/events/new"}

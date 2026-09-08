@@ -93,12 +93,7 @@ export function DayPerson({
       )}
       <div>
         <strong>{name}</strong>
-        {bio && (
-          <details className="day-bio">
-            <summary>About {name}</summary>
-            <p>{bio}</p>
-          </details>
-        )}
+        {bio && <p className="day-bio day-clamp">{bio}</p>}
       </div>
     </div>
   );
@@ -131,10 +126,7 @@ export function DayDirections({ event }: { event: Event }) {
     <section className="panel day-directions">
       <h2>Getting there</h2>
       <h3>{event.venue || "Venue to be confirmed"}</h3>
-      <p>
-        {event.address ||
-          "The organizer needs to add a street address before directions are available."}
-      </p>
+      <p>{event.address || "Address TBD"}</p>
       {event.address ? (
         <div className="day-actions">
           <a
@@ -143,7 +135,7 @@ export function DayDirections({ event }: { event: Event }) {
             target="_blank"
             rel="noreferrer"
           >
-            Google Maps directions
+            Google Maps
           </a>
           <a
             className="button secondary"
@@ -151,19 +143,10 @@ export function DayDirections({ event }: { event: Event }) {
             target="_blank"
             rel="noreferrer"
           >
-            Apple Maps directions
+            Apple Maps
           </a>
         </div>
-      ) : (
-        <div className="day-actions">
-          <span aria-disabled="true" className="button secondary">
-            Google Maps unavailable
-          </span>
-          <span aria-disabled="true" className="button secondary">
-            Apple Maps unavailable
-          </span>
-        </div>
-      )}
+      ) : null}
     </section>
   );
 }
@@ -179,7 +162,8 @@ export function DayNav({
     ["overview", "Overview"],
     ...(detail.canViewRoster
       ? [
-          ["players", "Players & teams"],
+          ["players", "Players"],
+          ["teams", "Teams"],
           ["schedule", "Schedule"],
           ["gear", "Gear & costs"],
         ]

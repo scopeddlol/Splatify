@@ -37,10 +37,7 @@ export function ImageUpload({
           aria-describedby={`${id}-help`}
         />
       </label>
-      <small id={`${id}-help`}>
-        Still JPEG, PNG, or WebP. Maximum 4 MB and 20 million pixels. Images are
-        resized and metadata is removed.
-      </small>
+      <small id={`${id}-help`}>JPEG, PNG or WebP. Max 4 MB / 20 MP.</small>
       {mediaId && (
         <label className="checkbox-label">
           <input type="checkbox" name={removeName} /> Remove current{" "}

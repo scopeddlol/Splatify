@@ -42,8 +42,23 @@ async function main() {
       );
       await client.query("INSERT INTO schema_migrations(version) VALUES (2)");
     }
+    const community = await client.query(
+      "SELECT version FROM schema_migrations WHERE version=3",
+    );
+    if (!community.rowCount) {
+      await client.query(
+        await readFile(
+          new URL("../src/lib/migrations/003-community.sql", import.meta.url),
+          "utf8",
+        ),
+      );
+      await client.query("INSERT INTO schema_migrations(version) VALUES (3)");
+    }
     await syncAdmin(client, admin);
     await client.query("DELETE FROM sessions WHERE expires_at <= now()");
+    await client.query(
+      "DELETE FROM password_reset_links WHERE expires_at <= now()",
+    );
     await client.query("DELETE FROM rate_limits WHERE expires_at <= now()");
     await client.query(
       "DELETE FROM activity WHERE created_at < now() - interval '180 days'",

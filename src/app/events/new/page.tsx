@@ -20,21 +20,14 @@ export default async function NewEvent({
         <div className="page-heading">
           <div>
             <h1>Create a day</h1>
-            <p>
-              Start with a name, a place, and a date. Add the rest when you are
-              ready.
-            </p>
           </div>
         </div>
         <Notice params={await searchParams} />
         <div className="panel">
           {settings.eventCreationEnabled ? (
-            <EventForm />
+            <EventForm sponsorsAvailable={settings.sponsorsEnabled} />
           ) : (
-            <p>
-              New event creation is temporarily paused by the site owner.
-              Existing plans are still available.
-            </p>
+            <p>New days are temporarily paused.</p>
           )}
         </div>
       </div>

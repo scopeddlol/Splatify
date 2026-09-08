@@ -100,6 +100,12 @@ test(
         ),
       );
       await db.query("INSERT INTO schema_migrations VALUES(2); COMMIT");
+      await db.query(
+        await readFile(
+          new URL("../src/lib/migrations/003-community.sql", import.meta.url),
+          "utf8",
+        ),
+      );
       const migrated = (
         await db.query(
           "SELECT g.*,t.name AS team_name FROM guests g JOIN teams t ON t.id=g.team_id WHERE g.id=$1",
@@ -380,7 +386,7 @@ test(
       );
       await call(actions.submitRsvpAction, { status: "declined" });
       day = (await data.getDay(eventId))!;
-      assert.equal(day.canViewRoster, true);
+      assert.equal(day.canViewRoster, false);
       assert.equal(day.isMember, false);
       assert.deepEqual(day.messages, []);
       await call(actions.addMessageAction, { body: "Declined" }, true);

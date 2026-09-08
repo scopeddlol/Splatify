@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "./day-styles.css";
 import "./community-styles.css";
+import "./account-styles.css";
+import "./refinement.css";
+import { getSiteSettings } from "@/lib/data";
+import { eventStyle } from "@/lib/presentation";
 
 export const metadata: Metadata = {
   title: {
@@ -19,12 +23,13 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const settings = await getSiteSettings();
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body style={eventStyle(settings.accentColor)}>{children}</body>
     </html>
   );
 }

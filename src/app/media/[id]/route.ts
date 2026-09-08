@@ -33,7 +33,7 @@ export async function GET(
   const [media] = await query<{ data: Buffer }>(
     `WITH actor_guests AS (
       SELECT g.event_id,g.approval FROM guests g
-      WHERE g.user_id=$2::uuid OR (
+      WHERE g.status<>'declined' AND (g.user_id=$2::uuid OR (
         g.user_id IS NULL
         AND NOT EXISTS (
           SELECT 1 FROM guests account_guest
@@ -43,11 +43,15 @@ export async function GET(
           SELECT 1 FROM unnest($3::uuid[],$4::text[]) AS c(event_id,token_hash)
           WHERE c.event_id=g.event_id AND c.token_hash=g.edit_token_hash
         )
-      )
+      ))
     )
     SELECT m.data FROM media m WHERE m.id=$1 AND m.content_type='image/webp' AND (
       (m.purpose='avatar' AND m.event_id IS NULL AND (
         m.owner_id=$2::uuid OR EXISTS (
+          SELECT 1 FROM users u JOIN settings s ON s.id=1
+          WHERE u.id=m.owner_id AND u.avatar_id=m.id
+            AND u.public_profile_enabled AND s.public_profiles_enabled
+        ) OR EXISTS (
           SELECT 1 FROM events e
           WHERE (
             e.owner_id=$2::uuid OR EXISTS (SELECT 1 FROM event_organizers o WHERE o.event_id=e.id AND o.user_id=$2::uuid)
@@ -55,7 +59,7 @@ export async function GET(
           ) AND (
             e.owner_id=m.owner_id OR EXISTS (SELECT 1 FROM event_organizers o WHERE o.event_id=e.id AND o.user_id=m.owner_id)
             OR EXISTS (SELECT 1 FROM guests g WHERE g.event_id=e.id AND g.user_id=m.owner_id AND (
-              g.approval='approved' OR e.owner_id=$2::uuid
+              (g.approval='approved' AND g.status<>'declined') OR e.owner_id=$2::uuid
               OR EXISTS (SELECT 1 FROM event_organizers o WHERE o.event_id=e.id AND o.user_id=$2::uuid)
             ))
           )

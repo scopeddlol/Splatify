@@ -4,6 +4,9 @@ export type User = {
   email: string;
   isAdmin: boolean;
   realName: string;
+  firstName: string;
+  profileSlug: string | null;
+  publicProfileEnabled: boolean;
   bio: string;
   avatarId: string | null;
   defaultMarker: "mechanical" | "electric" | "rental";
@@ -33,8 +36,13 @@ export type Event = {
   invitationHeading: string;
   invitationMessage: string;
   memberInvitesEnabled: boolean;
+  sponsorsEnabled: boolean;
 };
 export type Guest = {
+  firstName: string;
+  profileSlug: string | null;
+  loadoutPreview: string;
+  attended: boolean;
   id: string;
   name: string;
   status: "going" | "maybe" | "declined";
@@ -49,6 +57,7 @@ export type Guest = {
   approval: "approved" | "pending";
 };
 export type Team = {
+  logoIcon: string;
   id: string;
   name: string;
   color: string;
@@ -90,7 +99,10 @@ export type Poll = {
   options: Array<{ id: string; label: string; votes: number }>;
   myVote?: string;
 };
+export type Sponsor = { id: string; name: string; url: string };
 export type EventDetail = {
+  teamPlayers: Guest[];
+  sponsors: Sponsor[];
   event: Event;
   guests: Guest[];
   schedule: ScheduleItem[];
@@ -118,6 +130,13 @@ export type EventDetail = {
   memberCandidates: Array<{ id: string; name: string }>;
 };
 export type SiteSettings = {
+  landingTitle: string;
+  landingSubtitle: string;
+  landingCta: string;
+  accentColor: string;
+  discoveryEnabled: boolean;
+  publicProfilesEnabled: boolean;
+  sponsorsEnabled: boolean;
   registrationEnabled: boolean;
   eventCreationEnabled: boolean;
   siteNotice: string;

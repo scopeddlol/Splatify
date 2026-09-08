@@ -222,6 +222,46 @@ changes before deploying images that depend on them. Keep config revisions with
 your operational records. PostgreSQL and Caddy use major-version tags; review and
 pin their digests if your operations policy requires immutable dependencies.
 
+## Community And Owner Controls
+
+Migration 3 (`src/lib/migrations/003-community.sql`) adds team insignias, loadouts,
+optional public profiles, verified attendance, sponsors, site controls, and hashed
+reset links. Run `npm run db:migrate` before starting this release. Existing data,
+private visibility, guest identities, and team assignments are preserved.
+
+- Teams have a dedicated scoreboard-style roster, 24 Lucide badge choices, and
+  atomic bulk assignment (up to 100 players). Captains cannot take another team's players.
+- Normal RSVPs offer Going/Maybe. Withdraw is a separate action; it removes active
+  roster/chat access and team/captain assignments, but retains verified historical attendance.
+- `/profile` supports first name, a custom `/u/slug` address, public opt-in, and up to
+  ten loadout items. Real name stays private. Public profile consent defaults off.
+- Organizers confirm attendance for dated days on or before the current database date.
+  Public histories expose public day details; private entries contain only `Private event`.
+- Sponsors default off per event. Organizers can enable them and add up to 12 names
+  with optional HTTPS links. The owner can disable sponsorships site-wide.
+- `/admin/accounts` provides account search and owner-issued reset links. Issuance,
+  account deletion, event deletion, and site changes require the current owner password.
+- Reset links are hashed in PostgreSQL, expire after 30 minutes, and are consumed
+  atomically. GET requests never consume them. Links are shown only to the issuing
+  owner and must be shared privately. Reissuing invalidates previous links.
+- Password changes, recovery-code resets, and reset-link consumption revoke previous
+  sessions, reset links, and recovery codes. Eight replacement codes are displayed
+  privately. Environment-managed owner credentials remain editable only through `.env`.
+- `/admin/site` edits bounded plain-text landing copy, the announcement banner,
+  validated accent color, and feature flags. It cannot edit HTML, JavaScript, SQL,
+  roles, origins, or server configuration. Owner actions are audit logged without secrets.
+
+Do not record `/reset/*`, private RSVP/invitation URLs, request bodies, or recovery
+codes in reverse-proxy, analytics, or error logs. Uploaded media stays authorized
+and `private, no-store`; do not introduce shared caches for personalized pages.
+Public profile opt-out takes effect immediately at the application/media authorization layer.
+Icons are free/open-source Lucide assets; attribution is in `public/icon-licenses.txt`.
+
+The optional `tests/v3-browser.ts` extends the community browser suite with team,
+profile, reset-link, owner-site, sponsorship, and responsive-control checks. It
+requires the existing browser environment variables plus disposable `ADMIN_EMAIL`
+and `ADMIN_PASSWORD`. It restores site settings and removes test-owned accounts/events.
+
 ## GitHub Deployment
 
 `CI` runs on PRs and pushes to `main`. `Deploy` only accepts a successful `CI`
@@ -231,8 +271,8 @@ with deployment credentials. Protect `main` with review and required CI checks.
 
 The publisher uses `GITHUB_TOKEN` with `packages: write` to publish
 `ghcr.io/scopeddlol/splatify:sha-<commit>`. Ensure the GHCR package is linked to
-this repository, inherits its access, and is **private**; check the package's
-visibility/access settings explicitly, especially if it already exists. The
+this repository and is **public**, as chosen by the owner. The publication workflow
+checks that visibility before running its container smoke test. The
 deployment image also includes the returned `@sha256:...` digest, so moving a tag
 cannot change what is deployed.
 
@@ -248,11 +288,11 @@ restrict deployment to `main`. Add these environment secrets:
   out-of-band channel and verify it. Do not trust an unverified `ssh-keyscan` result.
 - `VPS_DEPLOY_PATH`: preinstalled deployment directory, for example `/opt/splatify`.
 - `GHCR_USERNAME`: GitHub username of the pull-only package credential owner.
-- `GHCR_TOKEN`: PAT (classic) with `read:packages` and access to this private
+- `GHCR_TOKEN`: PAT (classic) with `read:packages` and access to this
   package; authorize organization SSO if needed. Avoid write/delete package scopes.
 
 After the VPS files and all secrets are ready, set the repository Actions variable
-`DEPLOY_ENABLED=true`. Until enabled, CI and private image publishing run normally,
+`DEPLOY_ENABLED=true`. Until enabled, CI and public image publishing run normally,
 but the SSH job is skipped. Environment protection features depend on your GitHub
 plan; configure the available protections before enabling deployment.
 

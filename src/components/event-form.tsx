@@ -5,15 +5,19 @@ import type { Event } from "@/lib/types";
 import { createEventAction, updateEventAction } from "@/app/actions";
 import { TIME_ZONES, timeZoneLabel } from "@/lib/presentation";
 import { Submit } from "./ui";
+import { SettingsToggle, SliderField } from "./settings-controls";
 
 export function EventForm({
   event,
   invitationOnly = false,
+  sponsorsAvailable = false,
 }: {
   event?: Event;
   invitationOnly?: boolean;
+  sponsorsAvailable?: boolean;
 }) {
   const [visibility, setVisibility] = useState(event?.visibility || "private");
+  const [accent, setAccent] = useState(event?.accentColor || "#d5fb51");
   const timezone = event?.timezone || "America/New_York";
   const theme = event?.theme === "forest" ? "lime" : event?.theme || "lime";
   const invitationFields = (
@@ -33,7 +37,6 @@ export function EventForm({
           rows={4}
           maxLength={3000}
           defaultValue={event?.invitationMessage}
-          placeholder="Tell your guests why you would love to see them there."
         />
       </label>
     </>
@@ -68,7 +71,6 @@ export function EventForm({
       ) : (
         <>
           <section className="form-section">
-            <h2>The basics</h2>
             <label>
               Day name
               <input
@@ -86,7 +88,6 @@ export function EventForm({
                 rows={3}
                 maxLength={5000}
                 defaultValue={event?.description}
-                placeholder="Who is it for, and what should players know?"
               />
             </label>
             <div className="form-grid">
@@ -117,9 +118,6 @@ export function EventForm({
                   </option>
                 ))}
               </select>
-              <span className="field-help">
-                All schedule times use this time zone.
-              </span>
             </label>
             <label>
               Venue
@@ -136,13 +134,11 @@ export function EventForm({
                 name="address"
                 maxLength={300}
                 defaultValue={event?.address}
-                placeholder="A real address for driving directions"
               />
             </label>
           </section>
           <section className="form-section">
-            <h2>Who can join?</h2>
-            <fieldset className="day-options">
+            <fieldset className="day-options day-segmented">
               <legend>Visibility</legend>
               <label>
                 <input
@@ -152,8 +148,7 @@ export function EventForm({
                   checked={visibility === "private"}
                   onChange={() => setVisibility("private")}
                 />
-                Private{" "}
-                <span>Only people with an invitation can request to join.</span>
+                Private
               </label>
               <label>
                 <input
@@ -163,10 +158,7 @@ export function EventForm({
                   checked={visibility === "public"}
                   onChange={() => setVisibility("public")}
                 />
-                Public{" "}
-                <span>
-                  Show a preview in Explore. The player list stays private.
-                </span>
+                Public
               </label>
             </fieldset>
             <div className="form-grid">
@@ -205,37 +197,36 @@ export function EventForm({
               name="memberInvitesEnabledPresent"
               value="true"
             />
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                name="memberInvitesEnabled"
-                defaultChecked={event?.memberInvitesEnabled ?? true}
-              />
-              Let members invite others
-            </label>
-            <p className="field-help">
-              When off, new join requests need organizer approval, and only
-              organizers can share the invitation.
-            </p>
+            <SettingsToggle
+              name="memberInvitesEnabled"
+              label="Members can invite"
+              defaultChecked={event?.memberInvitesEnabled ?? true}
+            />
+            <input type="hidden" name="sponsorsEnabledPresent" value="true" />
+            {!sponsorsAvailable && event?.sponsorsEnabled && (
+              <input type="hidden" name="sponsorsEnabled" value="true" />
+            )}
+            <SettingsToggle
+              name="sponsorsEnabled"
+              label="Sponsors"
+              description={
+                !sponsorsAvailable ? "Disabled site-wide" : undefined
+              }
+              defaultChecked={event?.sponsorsEnabled ?? false}
+              disabled={!sponsorsAvailable}
+            />
           </section>
-          <details className="day-advanced" open={event ? true : undefined}>
+          <details className="day-advanced">
             <summary>Player limit, costs &amp; appearance</summary>
             <div className="form-stack inset-form">
               <div className="form-grid">
-                <label>
-                  Player limit
-                  <input
-                    type="number"
-                    name="capacity"
-                    min={0}
-                    max={1000}
-                    defaultValue={event?.capacity ?? 0}
-                    required
-                  />
-                  <span className="field-help">
-                    0 means no set limit, up to 1,000 RSVPs.
-                  </span>
-                </label>
+                <SliderField
+                  name="capacity"
+                  label="Player limit (0 = open)"
+                  min={0}
+                  max={1000}
+                  defaultValue={event?.capacity ?? 0}
+                />
                 <label>
                   Currency
                   <select
@@ -260,33 +251,22 @@ export function EventForm({
                       <option key={currency}>{currency}</option>
                     ))}
                   </select>
-                  <span className="field-help">
-                    Estimates only. No payments collected.
-                  </span>
                 </label>
               </div>
               <label>
-                Accent color
+                Accent color{" "}
+                <span
+                  className="day-accent-preview"
+                  style={{ backgroundColor: accent }}
+                />
                 <input
                   type="color"
                   name="accentColor"
-                  defaultValue={
-                    event?.accentColor ||
-                    (theme === "orange"
-                      ? "#ffad72"
-                      : theme === "violet"
-                        ? "#c0a5ff"
-                        : "#d5fb51")
-                  }
+                  value={accent}
+                  onChange={(e) => setAccent(e.target.value)}
                 />
               </label>
               {!event && invitationFields}
-              {!event && (
-                <p className="field-help">
-                  Add a day cover and a separate invitation image in Settings
-                  after creating your day.
-                </p>
-              )}
             </div>
           </details>
         </>

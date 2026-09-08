@@ -4,6 +4,8 @@ import {
   removeOrganizerAction,
   deleteEventAction,
   rotateInviteAction,
+  addSponsorAction,
+  deleteSponsorAction,
 } from "@/app/actions";
 import { uploadEventImageAction } from "@/app/profile/actions";
 import { EventForm } from "./event-form";
@@ -11,8 +13,10 @@ import { ImageUpload } from "./image-upload";
 import { Hidden } from "./shell";
 import { Submit, ConfirmSubmit, DeleteButton } from "./ui";
 import { DayFields, DayPerson, DayRemove } from "./day-shared";
+import { getSiteSettings } from "@/lib/data";
 
-export function DaySettings({ detail }: { detail: EventDetail }) {
+export async function DaySettings({ detail }: { detail: EventDetail }) {
+  const site = await getSiteSettings();
   const { event } = detail;
   const candidates = detail.memberCandidates.filter(
     (member) =>
@@ -22,11 +26,10 @@ export function DaySettings({ detail }: { detail: EventDetail }) {
     <div className="day-stack">
       <section className="panel">
         <h2>Day details</h2>
-        <EventForm event={event} />
+        <EventForm event={event} sponsorsAvailable={site.sponsorsEnabled} />
       </section>
       <section className="panel">
         <h2>Day cover</h2>
-        <p>The image players see on the day overview and public preview.</p>
         <form action={uploadEventImageAction} className="form-stack">
           <DayFields eventId={event.id} section="settings" />
           <Hidden name="purpose" value="cover" />
@@ -40,10 +43,6 @@ export function DaySettings({ detail }: { detail: EventDetail }) {
       </section>
       <section className="panel">
         <h2>Invitation welcome</h2>
-        <p>
-          A personal greeting for people opening your invitation. This is
-          separate from the day description and cover.
-        </p>
         <EventForm event={event} invitationOnly />
         <form
           action={uploadEventImageAction}
@@ -62,11 +61,7 @@ export function DaySettings({ detail }: { detail: EventDetail }) {
       {detail.isOwner && (
         <section className="panel">
           <h2>Co-organizers</h2>
-          <p>
-            Co-organizers can edit the day, invitations, teams, schedule, gear,
-            announcements, and polls, and approve players. Only you can appoint
-            organizers or delete the day.
-          </p>
+          <p>Co-organizers can edit the day and manage players.</p>
           <div className="day-stack">
             {detail.organizers.map((organizer) => (
               <div className="day-row-heading" key={organizer.id}>
@@ -89,10 +84,6 @@ export function DaySettings({ detail }: { detail: EventDetail }) {
               </div>
             ))}
           </div>
-          <p className="field-help">
-            To appear here, a player needs an account and an approved going or
-            maybe RSVP first.
-          </p>
           {candidates.length > 0 ? (
             <form action={addOrganizerAction} className="form-stack">
               <DayFields eventId={event.id} section="settings" />
@@ -114,12 +105,60 @@ export function DaySettings({ detail }: { detail: EventDetail }) {
           )}
         </section>
       )}
+      {site.sponsorsEnabled && event.sponsorsEnabled && (
+        <section className="panel">
+          <h2>Sponsors</h2>
+          <div className="day-stack">
+            {detail.sponsors.map((sponsor) => (
+              <div className="day-row-heading" key={sponsor.id}>
+                {sponsor.url ? (
+                  <a href={sponsor.url} target="_blank" rel="noreferrer">
+                    {sponsor.name}
+                  </a>
+                ) : (
+                  <span>{sponsor.name}</span>
+                )}
+                <DayRemove
+                  eventId={event.id}
+                  itemId={sponsor.id}
+                  name="sponsorId"
+                  section="settings"
+                  action={deleteSponsorAction}
+                  label={`Remove ${sponsor.name}`}
+                />
+              </div>
+            ))}
+          </div>
+          {detail.sponsors.length < 12 && (
+            <details className="day-advanced">
+              <summary>Add sponsor</summary>
+              <form action={addSponsorAction} className="form-stack inset-form">
+                <DayFields eventId={event.id} section="settings" />
+                <label>
+                  Name
+                  <input name="name" maxLength={100} required />
+                </label>
+                <label>
+                  Website
+                  <input
+                    type="url"
+                    name="url"
+                    pattern="https://.*"
+                    placeholder="https://"
+                    maxLength={500}
+                    required
+                  />
+                </label>
+                <Submit>Add sponsor</Submit>
+              </form>
+            </details>
+          )}
+        </section>
+      )}
       <section className="panel">
         <h2>Invitation access</h2>
         <p>
-          Replace the invitation link if it has been shared too widely. The old
-          invitation and its personal edit links will stop working. Existing
-          members can still open the stable day URL.
+          Replacing the link disables old invitations and personal edit links.
         </p>
         <form action={rotateInviteAction}>
           <DayFields eventId={event.id} section="settings" />
@@ -133,10 +172,7 @@ export function DaySettings({ detail }: { detail: EventDetail }) {
           <div className="day-row-heading">
             <div>
               <h2>Delete this day</h2>
-              <p>
-                Permanently remove the day, RSVPs, messages, and plans. This
-                cannot be undone.
-              </p>
+              <p>Permanently deletes the day and all player activity.</p>
             </div>
             <form action={deleteEventAction}>
               <DayFields eventId={event.id} section="settings" />

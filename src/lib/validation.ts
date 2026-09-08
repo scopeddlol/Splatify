@@ -1,4 +1,31 @@
 import { z } from "zod";
+import { TEAM_ICON_KEYS } from "./team-icons";
+
+export const teamIconSchema = z.enum(TEAM_ICON_KEYS);
+export const sponsorSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  url: z
+    .string()
+    .trim()
+    .max(500)
+    .default("")
+    .refine((value) => {
+      if (!value) return true;
+      try {
+        const url = new URL(value);
+        return (
+          /^https:\/\//i.test(value) &&
+          !/[\s\\]/.test(value) &&
+          url.protocol === "https:" &&
+          !!url.hostname &&
+          !url.username &&
+          !url.password
+        );
+      } catch {
+        return false;
+      }
+    }),
+});
 
 export class PublicError extends Error {}
 export const idSchema = z.uuid();
@@ -12,6 +39,17 @@ export const nameSchema = z.string().trim().min(1).max(80);
 const text = (max: number) => z.string().trim().max(max);
 export const colorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 export const planningEventSchema = z.object({
+  sponsorsEnabled: z
+    .preprocess(
+      (v) =>
+        v === "on" || v === "true"
+          ? true
+          : v === "off" || v === "false"
+            ? false
+            : v,
+      z.boolean(),
+    )
+    .default(false),
   city: text(100).default(""),
   state: text(100).default(""),
   country: text(100).default(""),

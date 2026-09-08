@@ -7,39 +7,38 @@ import { DayFields, DayRemove } from "./day-shared";
 export function DaySchedule({ detail }: { detail: EventDetail }) {
   return (
     <section className="panel">
-      <h2>The schedule</h2>
-      <p>All times are {timeZoneLabel(detail.event.timezone)}.</p>
-      {!detail.schedule.length && (
-        <p className="muted">
-          The organizer has not added a schedule yet. Check back before game
-          day.
-        </p>
-      )}
+      <div className="day-row-heading">
+        <h2>Schedule</h2>
+        <span>{timeZoneLabel(detail.event.timezone)}</span>
+      </div>
+      {!detail.schedule.length && <p className="muted">No schedule yet.</p>}
       <div className="day-timeline">
-        {detail.schedule.map((item) => (
-          <article key={item.id}>
-            <time>{clockLabel(item.time)}</time>
-            <div>
-              <h3>{item.title}</h3>
-              {item.description && (
-                <p className="day-prose">{item.description}</p>
+        {[...detail.schedule]
+          .sort((a, b) => a.time.localeCompare(b.time))
+          .map((item) => (
+            <article key={item.id}>
+              <time>{clockLabel(item.time)}</time>
+              <div>
+                <h3>{item.title}</h3>
+                {item.description && (
+                  <p className="day-prose">{item.description}</p>
+                )}
+              </div>
+              {detail.isOrganizer && (
+                <DayRemove
+                  eventId={detail.event.id}
+                  itemId={item.id}
+                  action={deleteScheduleAction}
+                  label={`Delete ${item.title}`}
+                  section="schedule"
+                />
               )}
-            </div>
-            {detail.isOrganizer && (
-              <DayRemove
-                eventId={detail.event.id}
-                itemId={item.id}
-                action={deleteScheduleAction}
-                label={`Delete ${item.title}`}
-                section="schedule"
-              />
-            )}
-          </article>
-        ))}
+            </article>
+          ))}
       </div>
       {detail.isOrganizer && (
-        <details className="day-advanced" open>
-          <summary>Add to the schedule</summary>
+        <details className="day-advanced">
+          <summary>Add schedule item</summary>
           <form action={addScheduleAction} className="form-stack inset-form">
             <DayFields eventId={detail.event.id} section="schedule" />
             <div className="form-grid">
@@ -48,7 +47,7 @@ export function DaySchedule({ detail }: { detail: EventDetail }) {
                 <input type="time" name="time" required />
               </label>
               <label>
-                What is happening?
+                Title
                 <input
                   name="title"
                   required
@@ -57,10 +56,13 @@ export function DaySchedule({ detail }: { detail: EventDetail }) {
                 />
               </label>
             </div>
-            <label>
-              Details
-              <textarea name="description" rows={3} maxLength={2000} />
-            </label>
+            <details>
+              <summary>Details</summary>
+              <label>
+                <span className="sr-only">Details</span>
+                <textarea name="description" rows={2} maxLength={2000} />
+              </label>
+            </details>
             <Submit>Add schedule item</Submit>
           </form>
         </details>

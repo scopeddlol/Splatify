@@ -2,6 +2,420 @@
   --day-border: #ffffff18;
   min-width: 0;
 }
+.day-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid #ffffff25;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: #dce3d7;
+  background: #ffffff08;
+  line-height: 1.3;
+}
+.day-clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.day-player-tags,
+.team-selection {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-block: 0.9rem;
+}
+.day-player .day-person .avatar {
+  width: 56px;
+  height: 56px;
+}
+.day-player-controls {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+  border-top: 1px solid #ffffff18;
+  margin-top: 1rem;
+  padding-top: 1rem;
+}
+.day-player-controls .checkbox-label {
+  white-space: nowrap;
+}
+.day-loadout,
+.day-bio {
+  color: #bdc8b7;
+}
+.day-withdraw {
+  margin-top: 1rem;
+}
+.team-badge {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent, #d5fb51);
+  background: #111711;
+  border: 2px solid currentColor;
+  border-radius: 28% 28% 44% 44%;
+  box-shadow:
+    inset 0 0 0 4px #111711,
+    inset 0 0 0 5px currentColor;
+}
+.team-preview {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  min-width: 0;
+}
+.team-preview > label:first-of-type {
+  flex: 1;
+  min-width: 130px;
+}
+.form-stack .team-preview input[type="color"] {
+  width: 64px;
+  height: 44px;
+  padding: 4px;
+}
+.team-headcount {
+  font-size: 2rem;
+  font-variant-numeric: tabular-nums;
+}
+.team-icon-picker {
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+.team-icon-picker legend {
+  margin-bottom: 0.75rem;
+}
+.team-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(44px, 1fr));
+  gap: 0.45rem;
+}
+.team-icon-grid label {
+  position: relative;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #ffffff25;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.team-icon-grid input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+}
+.team-icon-grid label:has(:checked) {
+  color: var(--accent, #d5fb51);
+  background: #ffffff12;
+  border-color: currentColor;
+}
+.team-icon-grid label:has(:focus-visible) {
+  outline: 2px solid var(--accent, #d5fb51);
+  outline-offset: 3px;
+}
+.team-roster {
+  margin-block: 1rem;
+}
+.team-roster-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.7rem 0;
+  border-top: 1px solid #ffffff18;
+}
+.team-roster-row .day-person {
+  flex: 1;
+}
+.team-roster-row .day-person .avatar {
+  width: 32px;
+  height: 32px;
+}
+.team-roster-row .day-chip {
+  font-size: 0.85rem;
+}
+.team-picker-list {
+  max-height: 380px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-block: 1px solid #ffffff18;
+}
+.form-stack .team-picker-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.85rem 0.5rem;
+  border-bottom: 1px solid #ffffff12;
+  cursor: pointer;
+}
+.team-picker-row > input {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.team-picker-row > span:first-of-type {
+  display: grid;
+  flex: 1;
+  gap: 0.25rem;
+}
+.team-picker-row > span:first-of-type > span {
+  color: #b4c0ae;
+  font-weight: 400;
+}
+.team-picker-row:has(:checked) {
+  background: #ffffff08;
+}
+.settings-toggle,
+.form-stack .settings-toggle {
+  display: flex;
+  flex-direction: row;
+  position: relative;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  cursor: pointer;
+  padding-block: 0.7rem;
+}
+.settings-toggle > span:first-child {
+  display: grid;
+  gap: 0.35rem;
+}
+.settings-toggle > span:first-child > span {
+  color: #b4c0ae;
+  font-weight: 400;
+}
+.settings-toggle input {
+  position: absolute;
+  right: 0;
+  opacity: 0;
+  width: 48px;
+  height: 28px;
+  margin: 0;
+}
+.settings-toggle-track {
+  width: 48px;
+  height: 28px;
+  flex-shrink: 0;
+  border: 1px solid #788470;
+  background: #30382c;
+  border-radius: 20px;
+  padding: 3px;
+  transition: background 0.15s;
+}
+.settings-toggle-track::before {
+  content: "";
+  display: block;
+  width: 20px;
+  height: 20px;
+  background: #dce3d7;
+  border-radius: 50%;
+  transition: transform 0.15s;
+}
+.settings-toggle input:checked + .settings-toggle-track {
+  background: var(--accent, #d5fb51);
+  border-color: var(--accent, #d5fb51);
+}
+.settings-toggle input:checked + .settings-toggle-track::before {
+  transform: translateX(20px);
+  background: #172010;
+}
+.settings-toggle input:focus-visible + .settings-toggle-track {
+  outline: 2px solid var(--accent, #d5fb51);
+  outline-offset: 4px;
+}
+.settings-toggle:has(:disabled) {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.slider-field {
+  display: grid;
+  gap: 0.6rem;
+  align-content: start;
+}
+.slider-field > div {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.form-stack .slider-field input[type="number"] {
+  width: 100px;
+  flex-shrink: 0;
+}
+.form-stack .slider-field input[type="range"] {
+  min-width: 0;
+  padding: 0;
+  accent-color: var(--accent, #d5fb51);
+}
+.day-options.day-segmented {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+.form-stack .day-segmented label {
+  flex-direction: row;
+  align-items: center;
+}
+.day-search {
+  display: grid;
+  gap: 0.6rem;
+}
+.day-search input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.85rem;
+  border: 1px solid #384030;
+  border-radius: 8px;
+  background: #11150f;
+  color: var(--text);
+}
+.day-segmented label:has(:checked) {
+  background: #ffffff0c;
+  border-color: var(--accent, #d5fb51);
+}
+.day-accent-preview {
+  display: inline-block;
+  width: 100%;
+  height: 8px;
+  border-radius: 5px;
+}
+.poll-builder-options {
+  display: grid;
+  gap: 0.75rem;
+}
+.poll-builder-options label {
+  flex: 1;
+}
+.poll-results {
+  display: grid;
+  gap: 0.55rem;
+}
+.poll-result {
+  display: flex;
+  position: relative;
+  overflow: hidden;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem;
+  border: 1px solid #ffffff25;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.poll-result:has(:checked) {
+  border-color: var(--accent, #d5fb51);
+}
+.poll-result-bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--accent, #d5fb51);
+  opacity: 0.13;
+  pointer-events: none;
+}
+.poll-result input {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin: 0;
+  accent-color: var(--accent, #d5fb51);
+}
+.poll-result > span:not(.poll-result-bar) {
+  flex: 1;
+  position: relative;
+  overflow-wrap: anywhere;
+}
+.poll-result strong {
+  position: relative;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.poll-result strong span {
+  font-weight: 400;
+  color: #bdc8b7;
+}
+.poll-results:disabled label {
+  cursor: default;
+}
+.day-poll-total {
+  display: block;
+  margin-top: 0.7rem;
+  color: #bdc8b7;
+}
+.day-sponsors {
+  padding: 1.25rem;
+  border-block: 1px solid #ffffff25;
+}
+.day-sponsors a {
+  padding: 0.6rem 1rem;
+  border: 1px solid #ffffff25;
+  border-radius: 8px;
+  font-weight: 600;
+}
+.day-chat .day-composer {
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #ffffff18;
+}
+.day-chat .day-message-list {
+  display: grid;
+  gap: 1rem;
+}
+.day-chat .day-message {
+  width: min(92%, 760px);
+  padding: 1.1rem;
+  border: 1px solid #ffffff18;
+  border-radius: 4px 16px 16px;
+  background: #ffffff04;
+}
+.day-chat .day-message.own {
+  justify-self: end;
+  border-radius: 16px 4px 16px 16px;
+  background: #d5fb5108;
+}
+.day-chat .day-message p {
+  margin-bottom: 0;
+}
+.day-chat .day-message time {
+  font-size: 0.9rem;
+}
+.day-timeline article > div {
+  border-left: 2px solid var(--accent, #d5fb51);
+  padding-left: 1.1rem;
+}
+.day-timeline article > time {
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 700px) {
+  .team-roster-row {
+    flex-wrap: wrap;
+  }
+  .team-roster-row .day-person {
+    min-width: 140px;
+  }
+  .day-chat .day-message {
+    width: 100%;
+  }
+  .day-player-controls .day-actions .button,
+  .team-manager .day-actions .button {
+    width: auto;
+  }
+  .day-row-heading {
+    flex-wrap: wrap;
+  }
+  .day-timeline article > time {
+    font-size: 1.05rem;
+  }
+}
 .day-page h1,
 .day-page h2,
 .day-page h3 {
@@ -22,6 +436,10 @@
 }
 .day-page .panel {
   min-width: 0;
+}
+.day-page .form-stack :is(label, input, select, textarea),
+.day-event-form :is(label, input, select, textarea) {
+  font-size: 1rem;
 }
 .day-stack {
   display: grid;

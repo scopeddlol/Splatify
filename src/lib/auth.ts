@@ -32,7 +32,7 @@ export async function getUser(): Promise<User | null> {
   const value = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!value || !tokenSchema.safeParse(value).success) return null;
   const [row] = await query(
-    "SELECT u.id,u.name,u.email,u.admin_verified,u.real_name,u.bio,u.avatar_id,u.default_marker FROM users u JOIN sessions s ON s.user_id=u.id WHERE s.token_hash=$1 AND s.expires_at>now()",
+    "SELECT u.id,u.name,u.email,u.admin_verified,u.real_name,u.first_name,u.profile_slug,u.public_profile_enabled,u.bio,u.avatar_id,u.default_marker FROM users u JOIN sessions s ON s.user_id=u.id WHERE s.token_hash=$1 AND s.expires_at>now()",
     [hashToken(value)],
   );
   return row
@@ -42,6 +42,9 @@ export async function getUser(): Promise<User | null> {
         email: row.email,
         isAdmin: isAdminAccount(row.email, row.admin_verified),
         realName: row.real_name,
+        firstName: row.first_name,
+        profileSlug: row.profile_slug,
+        publicProfileEnabled: row.public_profile_enabled,
         bio: row.bio,
         avatarId: row.avatar_id,
         defaultMarker: row.default_marker,
@@ -63,6 +66,23 @@ export async function requireAdmin(): Promise<User> {
   const user = await requireUser();
   if (!user.isAdmin) throw new PublicError("Administrator access required.");
   return user;
+}
+// Call inside the write transaction. These locks serialize writes with credential revocation.
+export async function requireActiveSession(
+  client: PoolClient,
+  userId: string,
+): Promise<void> {
+  await client.query("SELECT id FROM users WHERE id=$1 FOR SHARE", [userId]);
+  const raw = (await cookies()).get(SESSION_COOKIE)?.value;
+  const valid =
+    raw &&
+    tokenSchema.safeParse(raw).success &&
+    (await client.query(
+      "SELECT 1 FROM sessions WHERE user_id=$1 AND token_hash=$2 AND expires_at>clock_timestamp() FOR SHARE",
+      [userId, hashToken(raw)],
+    ));
+  if (!valid || !valid.rowCount)
+    throw new PublicError("Session expired. Please sign in again.");
 }
 export async function createSession(
   client: PoolClient,

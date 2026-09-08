@@ -1,0 +1,1090 @@
+/* Comfortable defaults across the planner; detailed guidance stays in disclosures. */
+body {
+  font-size: 16px;
+  line-height: 1.6;
+}
+.main-content {
+  max-width: 1640px;
+  padding: 36px clamp(24px, 3vw, 55px) 48px;
+}
+.panel {
+  padding: 28px;
+}
+.page-heading h1 {
+  font-size: clamp(30px, 3vw, 46px);
+}
+.page-heading p {
+  font-size: 15px;
+}
+.eyebrow {
+  font-size: 11px;
+  letter-spacing: 1.2px;
+}
+.side-nav a {
+  font-size: 14px;
+  padding: 13px 12px;
+}
+.workspace-label {
+  font-size: 10px;
+}
+.topbar > span {
+  font-size: 10px;
+}
+.topbar > a {
+  font-size: 12px;
+}
+.text-link {
+  font-size: 14px;
+}
+.button {
+  font-size: 14px;
+  min-height: 44px;
+  padding: 11px 18px;
+}
+.button.small {
+  font-size: 12px;
+  min-height: 38px;
+  padding: 9px 12px;
+}
+.icon-button {
+  min-width: 38px;
+  min-height: 38px;
+}
+.form-stack label,
+.day-event-form label {
+  font-size: 14px;
+}
+.form-stack
+  input:not([type="radio"]):not([type="checkbox"]):not([type="range"]):not(
+    [type="color"]
+  ),
+.form-stack select,
+.form-stack textarea,
+.day-inline-form select,
+.day-inline-form input {
+  font-size: 15px;
+  padding: 12px 14px;
+}
+.form-stack input[type="color"] {
+  padding: 3px !important;
+}
+.field-help {
+  font-size: 12px;
+}
+.account strong {
+  font-size: 12px;
+}
+.account small {
+  font-size: 10px;
+}
+.account {
+  gap: 10px;
+}
+.sidebar .account > div {
+  max-width: 110px;
+}
+.account .icon-button {
+  min-width: 32px;
+  min-height: 36px;
+}
+.field-note strong {
+  font-size: 17px;
+}
+.field-note a {
+  font-size: 12px;
+}
+.field-note > p {
+  display: none;
+}
+.app-footer {
+  font-size: 11px;
+}
+.app-footer span:last-child {
+  font-size: 10px;
+}
+.brand-symbol {
+  border-radius: 10px;
+}
+.community-card .card-title h3 {
+  font-size: 22px;
+}
+.community-card .event-card-body > p {
+  font-size: 13px;
+}
+.community-card .card-bottom {
+  font-size: 12px;
+}
+.discovery-search label,
+.discovery-search input {
+  font-size: 14px;
+}
+.section-heading.compact h2 {
+  font-size: 25px;
+}
+.profile-nudge {
+  padding: 18px 22px;
+}
+.profile-nudge p {
+  font-size: 13px;
+}
+.day-page {
+  font-size: 15px;
+}
+.day-nav a {
+  font-size: 14px;
+  padding: 14px 18px;
+}
+.day-header-copy h1 {
+  font-size: clamp(30px, 3.5vw, 50px);
+}
+.day-facts {
+  font-size: 14px;
+}
+.day-facts small {
+  font-size: 12px;
+}
+.day-cover {
+  max-height: 310px;
+  object-fit: cover;
+}
+.day-header-copy {
+  padding: 28px 32px;
+}
+.day-invitation .day-cover {
+  max-height: 260px;
+}
+.day-page .panel > h2 {
+  font-size: 25px;
+}
+.day-page .panel > p {
+  font-size: 14px;
+}
+.day-bio p {
+  font-size: 14px;
+}
+.day-directions > p {
+  font-size: 14px;
+}
+.day-gear-row strong {
+  font-size: 15px;
+}
+.day-person strong {
+  font-size: 16px;
+}
+.day-player-meta {
+  font-size: 13px;
+}
+.day-safety {
+  font-size: 12px;
+}
+.day-chat .day-person strong {
+  font-size: 14px;
+}
+.day-chat p {
+  font-size: 15px;
+}
+.day-chat time {
+  font-size: 11px;
+}
+.day-page .day-kicker {
+  font-size: 12px;
+}
+.owner-site-form label,
+.owner-account small,
+.account-reset small {
+  font-size: 13px;
+}
+.owner-account strong {
+  font-size: 15px;
+}
+.owner-tabs a {
+  font-size: 14px;
+}
+.account-editor small {
+  font-size: 12px;
+}
+.public-profile .profile-preview h1 {
+  font-size: clamp(30px, 4vw, 50px);
+}
+.pagination > span {
+  font-size: 13px;
+}
+.pagination small {
+  font-size: 11px;
+}
+.landing-refined {
+  max-width: 1920px;
+  width: 100%;
+  overflow: clip;
+}
+.landing-refined .landing-nav {
+  max-width: 1720px;
+  padding: 30px clamp(25px, 5vw, 90px);
+}
+.landing-refined .landing-nav nav {
+  font-size: 15px;
+  gap: 30px;
+}
+.landing-refined .landing-nav .button {
+  font-size: 14px;
+}
+.landing-refined .landing-hero {
+  max-width: 1720px;
+  min-height: min(800px, calc(100svh - 110px));
+  padding: 50px clamp(25px, 5vw, 90px) 85px;
+  gap: clamp(35px, 5vw, 90px);
+  grid-template-columns: 1.08fr 1fr;
+}
+.landing-refined .hero-copy h1 {
+  font-size: clamp(48px, 5.1vw, 88px);
+  line-height: 1.05;
+  letter-spacing: -0.055em;
+  overflow-wrap: anywhere;
+}
+.landing-refined .hero-copy > p {
+  font-size: clamp(17px, 1.4vw, 22px);
+  line-height: 1.65;
+  max-width: 590px;
+}
+.landing-refined .hero-copy > .eyebrow {
+  font-size: 12px;
+}
+.landing-refined .hero-actions {
+  gap: 28px;
+  margin-top: 32px;
+}
+.landing-refined .hero-actions .button {
+  font-size: 16px;
+  padding: 16px 23px;
+}
+.landing-refined .hero-actions .text-link {
+  font-size: 14px;
+}
+.landing-refined .hero-trust {
+  font-size: 13px;
+  gap: 22px;
+}
+.landing-refined .hero-art {
+  min-height: 530px;
+}
+.landing-refined .preview-card {
+  width: min(100%, 450px);
+}
+.landing-refined .preview-art {
+  height: 190px;
+}
+.landing-refined .preview-body {
+  padding: 28px;
+}
+.landing-refined .preview-body h2 {
+  font-size: clamp(24px, 2vw, 32px);
+  margin: 10px 0 22px;
+  letter-spacing: -0.035em;
+}
+.landing-refined .preview-body > .eyebrow {
+  font-size: 10px;
+}
+.landing-refined .preview-art .tag {
+  font-size: 10px;
+}
+.landing-refined .preview-crew > span:not(.live-dot) {
+  font-size: 11px;
+}
+.landing-refined .avatar-stack > span {
+  width: 32px;
+  height: 32px;
+  font-size: 9px;
+}
+.landing-refined .floating-note {
+  bottom: -12px;
+  right: -8px;
+  padding: 15px 20px;
+}
+.landing-refined .floating-note strong {
+  font-size: 14px;
+}
+.landing-refined .floating-note small {
+  font-size: 12px;
+}
+.landing-refined .note-icon {
+  width: 40px;
+  height: 40px;
+}
+.landing-refined .orbit-one {
+  width: 480px;
+  height: 480px;
+}
+.landing-refined .orbit-two {
+  width: 370px;
+  height: 370px;
+}
+.preview-teams {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.preview-teams > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.preview-teams > div > span:last-child {
+  font-size: 14px;
+  font-weight: 600;
+}
+.preview-teams small {
+  display: block;
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+.landing-refined .how-section {
+  max-width: 1620px;
+  padding: 65px clamp(25px, 5vw, 90px);
+}
+.landing-refined .how-section h2 {
+  font-size: clamp(32px, 3vw, 48px);
+  letter-spacing: -0.035em;
+}
+.landing-refined .feature-card {
+  padding: 30px;
+  min-height: 200px;
+}
+.landing-refined .feature-card > svg {
+  color: var(--accent);
+  margin-bottom: 26px;
+}
+.landing-refined .feature-card h3 {
+  font-size: 26px;
+  margin-bottom: 12px;
+}
+.landing-refined .feature-card p {
+  font-size: 16px;
+  line-height: 1.7;
+}
+.landing-compact {
+  max-width: 1440px;
+  margin: 20px auto;
+  padding: 40px 50px;
+  border-block: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 25px 40px;
+  align-items: center;
+}
+.compact-heading {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+.compact-heading > svg {
+  color: var(--accent);
+}
+.compact-heading h2 {
+  font-size: 30px;
+}
+.compact-features {
+  display: flex;
+  gap: 14px 25px;
+  flex-wrap: wrap;
+  grid-column: 1;
+  align-items: center;
+}
+.compact-features > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.landing-compact > .button {
+  grid-column: 2;
+  grid-row: 1/3;
+}
+.compact-faq {
+  max-width: 1000px;
+  padding: 55px 35px 75px;
+  margin: 0 auto;
+}
+.compact-faq h2 {
+  font-size: 30px;
+}
+.compact-faq summary {
+  font-size: 16px;
+}
+.compact-faq p {
+  font-size: 15px;
+}
+.landing-announcement {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  margin: 0 clamp(25px, 5vw, 90px);
+  background: #26341b;
+  border: 1px solid #4f6634;
+  border-radius: 10px;
+  color: #e1efd0;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+.landing-refined .landing-footer {
+  padding: 28px clamp(25px, 5vw, 90px);
+}
+.landing-refined .landing-footer > span,
+.landing-refined .landing-footer > a:last-child {
+  font-size: 12px;
+}
+.auth-card {
+  max-width: 430px;
+}
+.auth-card > p {
+  font-size: 14px;
+}
+.auth-card .eyebrow {
+  font-size: 11px;
+}
+.auth-links,
+.auth-links p {
+  font-size: 13px;
+}
+.auth-card > .auth-footnote {
+  font-size: 12px;
+}
+.auth-art p {
+  font-size: 16px;
+}
+.auth-main {
+  padding: 40px clamp(25px, 5vw, 80px);
+}
+@media (min-width: 1700px) {
+  .sidebar {
+    width: 255px;
+  }
+  .app-body {
+    margin-left: 255px;
+  }
+  .main-content {
+    padding-top: 45px;
+  }
+  .landing-refined .hero-art {
+    min-height: 600px;
+  }
+  .landing-refined .preview-card {
+    width: 490px;
+  }
+  .landing-refined .preview-art {
+    height: 230px;
+  }
+  .landing-refined .preview-body {
+    padding: 30px;
+  }
+  .landing-refined .preview-body h2 {
+    font-size: 33px;
+  }
+  .landing-refined .orbit-one {
+    width: 530px;
+    height: 530px;
+  }
+}
+@media (max-width: 1100px) {
+  .landing-refined .landing-hero {
+    gap: 35px;
+    min-height: 650px;
+  }
+  .landing-refined .hero-art {
+    min-height: 420px;
+  }
+  .landing-refined .preview-card {
+    width: 340px;
+  }
+  .landing-refined .preview-art {
+    height: 165px;
+  }
+  .landing-refined .preview-body {
+    padding: 22px;
+  }
+  .landing-refined .preview-body h2 {
+    font-size: 25px;
+  }
+  .landing-refined .orbit-one {
+    width: 370px;
+    height: 370px;
+  }
+  .landing-refined .orbit-two {
+    width: 290px;
+    height: 290px;
+  }
+  .preview-teams {
+    gap: 12px;
+  }
+  .preview-teams > div {
+    gap: 7px;
+  }
+  .preview-teams > div > span:last-child {
+    font-size: 12px;
+  }
+  .preview-teams .team-badge {
+    width: 36px !important;
+    height: 36px !important;
+  }
+  .landing-refined .hero-copy h1 {
+    font-size: clamp(44px, 5vw, 60px);
+  }
+  .landing-refined .hero-copy > p {
+    font-size: 18px;
+  }
+  .landing-refined .hero-copy > .eyebrow {
+    font-size: 11px;
+  }
+  .landing-refined .hero-trust {
+    font-size: 11px;
+    gap: 15px;
+  }
+  .landing-refined .hero-actions {
+    gap: 20px;
+  }
+  .landing-refined .hero-actions .button {
+    font-size: 14px;
+  }
+  .landing-refined .feature-card h3 {
+    font-size: 23px;
+  }
+  .landing-refined .feature-card p {
+    font-size: 15px;
+  }
+  .side-nav a {
+    font-size: 13px;
+  }
+  .main-content {
+    padding: 28px 24px;
+  }
+  .landing-compact {
+    margin: 15px 35px;
+    padding: 30px;
+  }
+  .compact-features > span {
+    font-size: 13px;
+  }
+}
+@media (max-width: 760px) {
+  body {
+    font-size: 15px;
+  }
+  .sidebar {
+    width: 100%;
+    padding: 15px 18px 0;
+  }
+  .app-body {
+    margin-left: 0;
+  }
+  .sidebar > .brand {
+    font-size: 26px;
+    margin-bottom: 13px;
+  }
+  .sidebar .brand-symbol {
+    width: 31px;
+    height: 31px;
+  }
+  .sidebar-bottom {
+    margin-bottom: 12px;
+  }
+  .sidebar .account > div {
+    max-width: 110px;
+  }
+  .account strong {
+    font-size: 11px;
+  }
+  .side-nav {
+    gap: 22px;
+  }
+  .side-nav a {
+    font-size: 12px;
+    padding: 12px 0;
+    min-height: 44px;
+  }
+  .side-nav a svg {
+    width: 17px;
+    height: 17px;
+  }
+  .main-content {
+    padding: 25px 18px 36px;
+  }
+  .page-heading p {
+    font-size: 14px;
+  }
+  .page-heading h1 {
+    font-size: 31px;
+  }
+  .page-heading .eyebrow {
+    font-size: 10px;
+  }
+  .page-heading > .button {
+    font-size: 13px;
+    min-height: 44px;
+  }
+  .panel {
+    padding: 22px;
+  }
+  .button {
+    min-height: 44px;
+    font-size: 14px;
+  }
+  .button.small {
+    min-height: 40px;
+    font-size: 12px;
+  }
+  .form-stack
+    input:not([type="radio"]):not([type="checkbox"]):not([type="range"]):not(
+      [type="color"]
+    ),
+  .form-stack textarea,
+  .form-stack select,
+  .discovery-search input,
+  .day-inline-form select,
+  .day-inline-form input {
+    font-size: 16px;
+  }
+  .day-nav {
+    gap: 7px;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    max-width: 100%;
+    padding-bottom: 9px;
+  }
+  .day-nav a {
+    padding: 12px 14px;
+    font-size: 13px;
+    min-height: 44px;
+    flex-shrink: 0;
+  }
+  .day-header-copy {
+    padding: 24px;
+  }
+  .day-header-copy h1 {
+    font-size: 34px;
+  }
+  .day-facts {
+    font-size: 13px;
+    gap: 10px;
+  }
+  .day-page .day-kicker {
+    font-size: 11px;
+  }
+  .day-cover {
+    max-height: 200px;
+  }
+  .day-page .panel > h2 {
+    font-size: 24px;
+  }
+  .day-page .panel > p {
+    font-size: 14px;
+  }
+  .day-person strong {
+    font-size: 16px;
+  }
+  .day-player-meta {
+    font-size: 13px;
+  }
+  .app-footer {
+    font-size: 10px;
+  }
+  .app-footer span:last-child {
+    font-size: 9px;
+  }
+  .community-card .card-title h3 {
+    font-size: 21px;
+  }
+  .community-card .card-bottom {
+    font-size: 11px;
+  }
+  .public-account .button {
+    font-size: 12px;
+    min-height: 40px;
+  }
+  .public-account .text-link {
+    font-size: 12px;
+  }
+  .landing-refined .landing-nav {
+    padding: 22px 22px;
+  }
+  .landing-refined .landing-nav nav {
+    font-size: 13px;
+    gap: 18px;
+  }
+  .landing-refined .landing-nav nav > a {
+    font-size: 13px;
+  }
+  .landing-refined .landing-nav .button {
+    font-size: 12px;
+    min-height: 42px;
+    padding: 10px 12px;
+  }
+  .landing-refined .landing-hero {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    padding: 42px 25px 72px;
+    gap: 65px;
+  }
+  .landing-refined .hero-copy h1 {
+    font-size: clamp(43px, 8vw, 64px);
+    letter-spacing: -0.05em;
+  }
+  .landing-refined .hero-copy > p {
+    font-size: 18px;
+    max-width: 470px;
+  }
+  .landing-refined .hero-actions {
+    flex-direction: row;
+    gap: 22px;
+    flex-wrap: wrap;
+  }
+  .landing-refined .hero-actions .button {
+    font-size: 15px;
+  }
+  .landing-refined .hero-trust {
+    font-size: 12px;
+    gap: 22px;
+  }
+  .landing-refined .hero-art {
+    min-height: 415px;
+    max-width: 460px;
+  }
+  .landing-refined .preview-card {
+    width: 340px;
+  }
+  .landing-refined .preview-art {
+    height: 165px;
+  }
+  .landing-refined .preview-body h2 {
+    font-size: 25px;
+  }
+  .landing-refined .floating-note {
+    right: 0;
+    bottom: -15px;
+  }
+  .landing-refined .floating-note strong {
+    font-size: 12px;
+  }
+  .landing-refined .floating-note small {
+    font-size: 11px;
+  }
+  .landing-refined .how-section {
+    padding: 45px 25px;
+  }
+  .landing-refined .how-section h2 {
+    font-size: 33px;
+  }
+  .landing-refined .feature-card {
+    min-height: 0;
+    padding: 25px;
+  }
+  .landing-refined .feature-card > svg {
+    margin-bottom: 20px;
+  }
+  .landing-refined .feature-card h3 {
+    font-size: 25px;
+  }
+  .landing-refined .feature-card p {
+    font-size: 15px;
+  }
+  .landing-compact {
+    display: block;
+    margin: 15px 25px;
+    padding: 28px 0;
+  }
+  .compact-heading h2 {
+    font-size: 26px;
+  }
+  .compact-features {
+    margin: 23px 0;
+    gap: 12px 20px;
+  }
+  .compact-faq {
+    padding: 35px 25px 55px;
+  }
+  .compact-faq h2 {
+    font-size: 28px;
+  }
+  .compact-faq summary {
+    font-size: 15px;
+  }
+  .compact-faq p {
+    font-size: 14px;
+  }
+  .landing-announcement {
+    margin: 0 22px;
+    padding: 14px 17px;
+    font-size: 14px;
+  }
+  .landing-refined .landing-footer {
+    padding: 25px;
+  }
+  .owner-tabs a {
+    font-size: 13px;
+    min-height: 44px;
+  }
+  .auth-card > h2 {
+    font-size: 32px;
+  }
+  .auth-card > p {
+    font-size: 15px;
+  }
+  .auth-card .form-stack label {
+    font-size: 14px;
+  }
+  .auth-card .auth-footnote {
+    font-size: 12px;
+  }
+}
+@media (max-width: 430px) {
+  .sidebar {
+    padding-inline: 16px;
+  }
+  .sidebar .account > div {
+    max-width: 82px;
+  }
+  .account strong {
+    font-size: 10px;
+  }
+  .side-nav {
+    gap: 20px;
+  }
+  .side-nav a {
+    font-size: 11px;
+    gap: 6px;
+  }
+  .main-content {
+    padding: 22px 16px 30px;
+  }
+  .page-heading h1 {
+    font-size: 29px;
+  }
+  .page-heading p {
+    font-size: 13px;
+  }
+  .page-heading .eyebrow {
+    font-size: 9px;
+  }
+  .panel {
+    padding: 20px;
+  }
+  .day-header-copy {
+    padding: 22px;
+  }
+  .day-header-copy h1 {
+    font-size: 30px;
+  }
+  .day-nav a {
+    font-size: 12px;
+    padding: 11px 12px;
+  }
+  .day-facts {
+    font-size: 12px;
+  }
+  .day-facts small {
+    font-size: 11px;
+  }
+  .day-page .panel > h2 {
+    font-size: 22px;
+  }
+  .day-roster {
+    gap: 14px;
+  }
+  .day-player {
+    padding: 18px;
+  }
+  .day-stats strong {
+    font-size: 27px;
+  }
+  .day-stats span {
+    font-size: 11px;
+  }
+  .section-heading.compact h2 {
+    font-size: 23px;
+  }
+  .text-link {
+    font-size: 13px;
+  }
+  .landing-refined .landing-nav {
+    padding: 20px 17px;
+  }
+  .landing-refined .landing-nav nav {
+    gap: 12px;
+  }
+  .landing-refined .landing-nav nav > a {
+    font-size: 12px;
+  }
+  .landing-refined .landing-nav .button {
+    font-size: 11px;
+    padding: 9px;
+  }
+  .landing-refined .landing-nav .button svg {
+    display: none;
+  }
+  .landing-refined .landing-nav > .brand {
+    font-size: 26px;
+  }
+  .landing-refined .landing-hero {
+    padding: 35px 21px 65px;
+    gap: 55px;
+  }
+  .landing-refined .hero-copy h1 {
+    font-size: clamp(40px, 11vw, 48px);
+  }
+  .landing-refined .hero-copy > p {
+    font-size: 17px;
+  }
+  .landing-refined .hero-copy > .eyebrow {
+    font-size: 10px;
+  }
+  .landing-refined .hero-actions {
+    gap: 18px;
+  }
+  .landing-refined .hero-actions .button {
+    padding: 14px 17px;
+    font-size: 14px;
+  }
+  .landing-refined .hero-actions .text-link {
+    font-size: 13px;
+  }
+  .landing-refined .hero-trust {
+    font-size: 10px;
+    gap: 16px;
+  }
+  .landing-refined .hero-art {
+    min-height: 375px;
+  }
+  .landing-refined .preview-card {
+    width: 285px;
+  }
+  .landing-refined .preview-art {
+    height: 145px;
+  }
+  .landing-refined .preview-body {
+    padding: 21px 18px;
+  }
+  .landing-refined .preview-body h2 {
+    font-size: 22px;
+    margin-bottom: 19px;
+  }
+  .landing-refined .preview-body > .eyebrow {
+    font-size: 9px;
+  }
+  .preview-teams > div > span:last-child {
+    font-size: 11px;
+  }
+  .preview-teams small {
+    font-size: 10px;
+  }
+  .landing-refined .preview-crew > span:not(.live-dot) {
+    font-size: 9px;
+  }
+  .landing-refined .avatar-stack > span {
+    width: 27px;
+    height: 27px;
+    font-size: 8px;
+  }
+  .landing-refined .orbit-one {
+    width: 310px;
+    height: 310px;
+  }
+  .landing-refined .orbit-two {
+    width: 250px;
+    height: 250px;
+  }
+  .landing-refined .floating-note {
+    padding: 11px;
+    right: 0;
+    bottom: -8px;
+  }
+  .landing-refined .floating-note strong {
+    font-size: 11px;
+  }
+  .landing-refined .floating-note small {
+    font-size: 10px;
+  }
+  .landing-refined .note-icon {
+    width: 31px;
+    height: 31px;
+  }
+  .landing-refined .how-section {
+    padding: 40px 21px;
+  }
+  .landing-refined .how-section h2 {
+    font-size: 29px;
+  }
+  .landing-refined .feature-card h3 {
+    font-size: 23px;
+  }
+  .landing-compact {
+    margin: 10px 21px;
+  }
+  .compact-heading {
+    gap: 10px;
+  }
+  .compact-heading h2 {
+    font-size: 24px;
+  }
+  .compact-features > span {
+    font-size: 12px;
+  }
+  .compact-faq {
+    padding: 30px 21px 45px;
+  }
+  .landing-announcement {
+    margin-inline: 17px;
+  }
+  .landing-refined .landing-footer > span {
+    font-size: 10px;
+  }
+  .landing-refined .landing-footer > a:last-child {
+    font-size: 11px;
+  }
+}
+
+body .button,
+body .button.small,
+body .icon-button,
+body .account .icon-button,
+body .password-toggle,
+.landing-refined .landing-nav .button,
+body .public-account .button {
+  min-height: 44px;
+  min-width: 44px;
+}
+body details > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+body label:has(input[type="checkbox"]),
+body label:has(input[type="radio"]) {
+  min-height: 44px;
+}
+body input[type="range"] {
+  min-height: 44px;
+}
+.owner-delete {
+  flex-shrink: 0;
+  max-width: 100%;
+}
+.owner-delete > summary {
+  color: #eead9b;
+  font-size: 13px;
+  padding: 8px;
+}
+.owner-delete[open] {
+  width: min(100%, 290px);
+  padding: 12px;
+  border: 1px solid #664236;
+  border-radius: 9px;
+}
+.owner-delete .form-stack {
+  gap: 9px;
+}
+.admin-row:has(.owner-delete[open]) {
+  flex-wrap: wrap;
+}

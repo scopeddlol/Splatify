@@ -12,7 +12,7 @@ export function token(): string {
 }
 export function safeReturnPath(value: unknown): string {
   if (typeof value !== "string" || value !== value.trim()) return "/dashboard";
-  return /^(?:\/dashboard|\/profile|\/explore|\/events\/new|\/invite\/[A-Za-z0-9_-]{43}|\/days\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/(?:overview|players|schedule|gear|messages|settings))?)$/i.test(
+  return /^(?:\/dashboard|\/profile|\/explore|\/events\/new|\/invite\/[A-Za-z0-9_-]{43}|\/days\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/(?:overview|players|schedule|gear|messages|settings|teams))?)$/i.test(
     value,
   )
     ? value
@@ -30,6 +30,52 @@ export function isAdminAccount(email: string, verified: boolean): boolean {
 }
 export function canUsePublicRecovery(email: string, managed: boolean): boolean {
   return !managed && email !== process.env.ADMIN_EMAIL?.trim().toLowerCase();
+}
+export function validProfileSlug(value: string): boolean {
+  return (
+    /^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/.test(value) &&
+    !new Set([
+      "admin",
+      "api",
+      "login",
+      "logout",
+      "signup",
+      "profile",
+      "explore",
+      "reset",
+      "settings",
+      "u",
+      "media",
+      "dashboard",
+      "events",
+      "days",
+      "invite",
+      "recover",
+      "recovery-codes",
+      "account",
+      "accounts",
+      "support",
+      "help",
+      "about",
+      "terms",
+      "privacy",
+      "www",
+    ]).has(value)
+  );
+}
+export function resetLink(raw: string): string {
+  const url = new URL(process.env.APP_URL ?? "");
+  if (
+    !["http:", "https:"].includes(url.protocol) ||
+    url.username ||
+    url.password ||
+    url.pathname !== "/" ||
+    url.search ||
+    url.hash ||
+    !/^[A-Za-z0-9_-]{43}$/.test(raw)
+  )
+    throw new Error("Invalid reset link configuration");
+  return `${url.origin}/reset/${raw}`;
 }
 export function isAllowedOrigin(
   origin: string | null,

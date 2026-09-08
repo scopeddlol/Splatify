@@ -3,10 +3,23 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getUser, protectAction } from "@/lib/auth";
+import {
+  getUser,
+  protectAction,
+  rateLimit,
+  setSession,
+  setAuthReturn,
+  requireActiveSession,
+} from "@/lib/auth";
 import { transaction } from "@/lib/db";
-import { saveImage } from "@/lib/profile";
-import { field, idSchema, PublicError } from "@/lib/validation";
+import { saveImage, replaceCredentials } from "@/lib/profile";
+import {
+  canUsePublicRecovery,
+  hashPassword,
+  validProfileSlug,
+  verifyPassword,
+} from "@/lib/security";
+import { field, idSchema, passwordSchema, PublicError } from "@/lib/validation";
 
 export async function saveProfileAction(form: FormData): Promise<void> {
   let result = "success=Profile%20saved.";
@@ -14,6 +27,7 @@ export async function saveProfileAction(form: FormData): Promise<void> {
     await protectAction();
     const user = await getUser();
     if (!user) throw new PublicError("Please sign in to continue.");
+    await rateLimit(`profile:${user.id}`, 30, 900);
     const values = z
       .object({
         displayName: z.string().trim().min(1).max(80),
@@ -34,18 +48,46 @@ export async function saveProfileAction(form: FormData): Promise<void> {
         "Choose either a new avatar or remove your current avatar.",
       );
     await transaction(async (client) => {
-      await client.query("SELECT id FROM users WHERE id=$1 FOR UPDATE", [
-        user.id,
-      ]);
+      const {
+        rows: [locked],
+      } = await client.query(
+        "SELECT id,email,admin_verified,first_name,profile_slug,public_profile_enabled FROM users WHERE id=$1 FOR UPDATE",
+        [user.id],
+      );
+      if (!locked) throw new PublicError("Account not found.");
+      await requireActiveSession(client, user.id);
+      const firstName = z
+        .string()
+        .trim()
+        .max(80)
+        .parse(
+          form.has("firstName") ? field(form, "firstName") : locked.first_name,
+        );
+      const slug = form.has("profileSlug")
+        ? field(form, "profileSlug").trim().toLowerCase() || null
+        : locked.profile_slug;
+      if (slug && !validProfileSlug(slug))
+        throw new PublicError(
+          "Use 3-30 lowercase letters, numbers or hyphens. This address may be reserved.",
+        );
+      const enabled =
+        form.has("publicProfilePresent") || form.has("publicProfileEnabled")
+          ? form.has("publicProfileEnabled")
+          : locked.public_profile_enabled;
+      if (enabled && !slug)
+        throw new PublicError("Choose a profile address first.");
       await client.query(
-        "UPDATE users SET name=CASE WHEN $6 THEN name ELSE $2 END,real_name=$3,bio=$4,default_marker=$5 WHERE id=$1",
+        "UPDATE users SET name=CASE WHEN $6 THEN name ELSE $2 END,real_name=$3,bio=$4,default_marker=$5,first_name=$7,profile_slug=$8,public_profile_enabled=$9 WHERE id=$1",
         [
           user.id,
           values.displayName,
           values.realName,
           values.bio,
           values.marker,
-          user.isAdmin,
+          !canUsePublicRecovery(locked.email, locked.admin_verified),
+          firstName,
+          slug,
+          enabled,
         ],
       );
       if (remove) {
@@ -64,13 +106,119 @@ export async function saveProfileAction(form: FormData): Promise<void> {
     const message =
       error instanceof PublicError
         ? error.message
-        : error instanceof z.ZodError
-          ? "Check your profile fields and try again."
-          : "Unable to save your profile. Please try again.";
+        : error &&
+            typeof error === "object" &&
+            "code" in error &&
+            error.code === "23505"
+          ? "That profile address is taken. Choose another."
+          : error instanceof z.ZodError
+            ? "Check your profile fields and try again."
+            : "Unable to save your profile. Please try again.";
     result = `error=${encodeURIComponent(message)}`;
   }
   revalidatePath("/", "layout");
   redirect(`/profile?${result}`);
+}
+
+export async function addLoadoutAction(form: FormData): Promise<void> {
+  let result = "success=Gear%20added.";
+  try {
+    await protectAction();
+    const user = await getUser();
+    if (!user) throw new PublicError("Please sign in to continue.");
+    await rateLimit(`loadout:${user.id}`, 30, 900);
+    const category = z
+      .enum(["marker", "hopper", "tank", "mask", "other"])
+      .parse(field(form, "category"));
+    const name = z.string().trim().min(1).max(100).parse(field(form, "name"));
+    const notes = z.string().trim().max(250).parse(field(form, "notes"));
+    await transaction(async (client) => {
+      const locked = await client.query(
+        "SELECT id FROM users WHERE id=$1 FOR UPDATE",
+        [user.id],
+      );
+      if (!locked.rowCount) throw new PublicError("Account not found.");
+      await requireActiveSession(client, user.id);
+      const {
+        rows: [count],
+      } = await client.query(
+        "SELECT count(*)::int AS total FROM loadout_items WHERE user_id=$1",
+        [user.id],
+      );
+      if (count.total >= 10) throw new PublicError("Maximum 10 gear items.");
+      await client.query(
+        "INSERT INTO loadout_items(user_id,category,name,notes,position) VALUES($1,$2,$3,$4,$5)",
+        [user.id, category, name, notes, count.total],
+      );
+    });
+  } catch (error) {
+    result = `error=${encodeURIComponent(error instanceof PublicError ? error.message : "Check your gear fields.")}`;
+  }
+  revalidatePath("/", "layout");
+  redirect(`/profile?${result}`);
+}
+
+export async function deleteLoadoutAction(form: FormData): Promise<void> {
+  let result = "success=Gear%20removed.";
+  try {
+    await protectAction();
+    const user = await getUser();
+    if (!user) throw new PublicError("Please sign in to continue.");
+    const id = idSchema.parse(field(form, "itemId"));
+    await transaction(async (client) => {
+      await client.query("SELECT id FROM users WHERE id=$1 FOR UPDATE", [
+        user.id,
+      ]);
+      await requireActiveSession(client, user.id);
+      await client.query(
+        "DELETE FROM loadout_items WHERE id=$1 AND user_id=$2",
+        [id, user.id],
+      );
+    });
+  } catch (error) {
+    result = `error=${encodeURIComponent(error instanceof PublicError ? error.message : "Unable to remove gear.")}`;
+  }
+  revalidatePath("/", "layout");
+  redirect(`/profile?${result}`);
+}
+
+export async function changePasswordAction(form: FormData): Promise<void> {
+  let result;
+  try {
+    await protectAction();
+    const user = await getUser();
+    if (!user) throw new PublicError("Please sign in to continue.");
+    await rateLimit(`password:${user.id}`, 6, 900);
+    const current = z
+      .string()
+      .min(1)
+      .max(128)
+      .parse(field(form, "currentPassword"));
+    const password = passwordSchema.parse(field(form, "password"));
+    if (password !== field(form, "confirmPassword"))
+      throw new PublicError("Passwords do not match.");
+    result = await transaction(async (client) => {
+      const {
+        rows: [locked],
+      } = await client.query(
+        "SELECT id,email,admin_verified,password_hash FROM users WHERE id=$1 FOR UPDATE",
+        [user.id],
+      );
+      if (!locked || !canUsePublicRecovery(locked.email, locked.admin_verified))
+        throw new PublicError("This account is environment-managed.");
+      await requireActiveSession(client, user.id);
+      if (!(await verifyPassword(current, locked.password_hash)))
+        throw new PublicError("Current password is incorrect.");
+      return replaceCredentials(client, user.id, await hashPassword(password));
+    });
+  } catch (error) {
+    redirect(
+      `/profile?error=${encodeURIComponent(error instanceof PublicError ? error.message : "Use a password of 12-128 characters.")}`,
+    );
+  }
+  await setSession(result.raw, result.codes);
+  await setAuthReturn("/profile", result.raw);
+  redirect("/recovery-codes");
 }
 
 export async function uploadEventImageAction(form: FormData): Promise<void> {
@@ -95,6 +243,7 @@ export async function uploadEventImageAction(form: FormData): Promise<void> {
     if (!remove && (!(file instanceof File) || !file.size))
       throw new PublicError("Choose an image to upload.");
     await transaction(async (client) => {
+      await requireActiveSession(client, user.id);
       const {
         rows: [event],
       } = await client.query(
